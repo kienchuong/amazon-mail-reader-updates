@@ -286,6 +286,9 @@ class AmazonMailReaderApp(
         except ValueError:
             messagebox.showwarning("Sai thông tin", "Số ngày và giới hạn phải là số.")
             return
+        if days < 1 or max_messages < 1:
+            messagebox.showwarning("Sai thông tin", "Số ngày và giới hạn phải lớn hơn 0.")
+            return
         accounts = self.db.get_accounts(active_only=True)
         if not accounts:
             messagebox.showinfo("Chưa có account", "Hãy thêm ít nhất một account ở tab Accounts.")
@@ -364,7 +367,9 @@ class AmazonMailReaderApp(
 
     def refresh_inbox(self) -> None:
         self.inbox_tree.delete(*self.inbox_tree.get_children())
-        rows = self.db.list_messages(self.category_filter.get(), self.search_var.get().strip())
+        rows = self.db.list_messages(
+            self.category_filter.get(), self.search_var.get().strip(), days_back=self.display_days()
+        )
         for row in rows:
             amount = ""
             if row["amount"] is not None:
@@ -384,6 +389,16 @@ class AmazonMailReaderApp(
                 ),
             )
         self.inbox_tree.fit_columns()
+
+    def display_days(self) -> int:
+        try:
+            return max(int(self.days_back_var.get()), 1)
+        except (TypeError, ValueError):
+            return 7
+
+    def refresh_current_range(self, _event=None) -> None:
+        self.refresh_inbox()
+        self.refresh_payments()
 
     def on_message_selected(self, _event=None) -> None:
         selection = self.inbox_tree.selection()
@@ -444,7 +459,7 @@ class AmazonMailReaderApp(
         self.payment_tree.delete(*self.payment_tree.get_children())
         totals = defaultdict(float)
         unknown = 0
-        for row in self.db.list_payments():
+        for row in self.db.list_payments(self.display_days()):
             if row["amount"] is not None and row["currency"]:
                 totals[row["currency"]] += float(row["amount"])
             else:
@@ -469,7 +484,7 @@ class AmazonMailReaderApp(
         self.payment_summary_var.set(" | ".join(summary_parts) if summary_parts else "Chưa có payment.")
 
     def export_payments_csv(self) -> None:
-        payments = self.db.list_payments()
+        payments = self.db.list_payments(self.display_days())
         if not payments:
             messagebox.showinfo("Chưa có payment", "Chưa có dữ liệu payment để xuất.")
             return
@@ -579,7 +594,7 @@ class AmazonMailReaderApp(
         if not url or not secret:
             messagebox.showwarning("Thiếu cấu hình", "Vui lòng nhập Webhook URL và Secret.")
             return
-        payments = self.db.list_payments()
+        payments = self.db.list_payments(self.display_days())
         if not payments:
             messagebox.showinfo("Chưa có payment", "Chưa có dữ liệu payment để xuất.")
             return
