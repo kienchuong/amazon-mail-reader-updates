@@ -24,7 +24,14 @@ class AccountsViewMixin:
         columns = ("name", "email", "provider", "status", "active")
         headings = {"name": "Account", "email": "Email", "provider": "Loại", "status": "Kết nối", "active": "Bật"}
         widths = {"name": 115, "email": 185, "provider": 85, "status": 140, "active": 48}
-        self.accounts_tree = self._create_tree(left, columns, headings, widths)
+        self.accounts_tree = self._create_tree(
+            left,
+            columns,
+            headings,
+            widths,
+            center_columns=("name", "provider", "status", "active"),
+            truncate_columns=("email",),
+        )
         self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
 
         actions = ctk.CTkFrame(left, fg_color="transparent")
@@ -94,4 +101,3 @@ class AccountsViewMixin:
 
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
