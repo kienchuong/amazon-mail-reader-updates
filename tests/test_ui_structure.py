@@ -13,6 +13,7 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn("ctk.CTk", controller)
         self.assertIn('self.show_page("inbox")', shell)
         self.assertNotIn("ttk.Notebook", controller + shell)
+        self.assertIn("minsize=220", shell)
         ast.parse(controller)
         ast.parse(shell)
 
@@ -33,7 +34,15 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn('(\"date\", \"account\", \"email\", \"money\", \"payment_id\")', source)
         self.assertNotIn('"subject"', source)
 
+    def test_fluent_table_supports_windows_11_layout(self):
+        source = (ROOT / "amzmail" / "views" / "data_table.py").read_text(encoding="utf-8")
+        self.assertIn("from tksheet import Sheet", source)
+        self.assertIn('family="Segoe UI Variable"', source)
+        self.assertIn('"double_click_column_resize"', source)
+        self.assertIn("def shorten", source)
+        self.assertIn("def fit_columns", source)
+        ast.parse(source)
+
 
 if __name__ == "__main__":
     unittest.main()
-
