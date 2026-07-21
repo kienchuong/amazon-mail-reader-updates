@@ -43,6 +43,8 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn("def shorten", source)
         self.assertIn("def fit_columns", source)
         self.assertIn("FLUENT_DARK_TABLE_OPTIONS", source)
+        shell = (ROOT / "amzmail" / "views" / "shell.py").read_text(encoding="utf-8")
+        self.assertIn("right_columns=right_columns", shell)
         self.assertIn('"table_bg": "#17191c"', source)
         self.assertIn('"table_grid_fg": "#17191c"', source)
         self.assertIn('"header_grid_fg": "#34383d"', source)
