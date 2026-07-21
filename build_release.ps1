@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.4.5"
+    [string]$Version = "0.5.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +18,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $project "README.md") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "HUONG_DAN_MICROSOFT.md") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "HUONG_DAN_GOOGLE.md") -Destination $stage
+    Copy-Item -LiteralPath (Join-Path $project "HUONG_DAN_MOBILE.md") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "requirements.txt") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "google_sheets_webhook.gs") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "build_release.ps1") -Destination $stage
