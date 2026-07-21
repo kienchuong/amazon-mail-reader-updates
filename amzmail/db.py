@@ -1,7 +1,9 @@
+
 from __future__ import annotations
 
 import sqlite3
 import threading
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -230,9 +232,18 @@ class AppDatabase:
                 ),
             )
 
-    def list_messages(self, category: str = "All", query: str = "", limit: int = 500) -> list[sqlite3.Row]:
+    @staticmethod
+    def _range_start(days_back: int) -> str:
+        days = max(int(days_back), 1)
+        return (datetime.now().astimezone() - timedelta(days=days)).date().isoformat()
+
+    def list_messages(
+        self, category: str = "All", query: str = "", limit: int = 500, days_back: int = 7
+    ) -> list[sqlite3.Row]:
         clauses: list[str] = []
         values: list[Any] = []
+        clauses.append("substr(COALESCE(m.mail_date, m.first_seen_at), 1, 10) >= ?")
+        values.append(self._range_start(days_back))
         if category != "All":
             clauses.append("m.category=?")
             values.append(category)
@@ -259,14 +270,16 @@ class AppDatabase:
                 (message_id,),
             ).fetchone()
 
-    def list_payments(self) -> list[sqlite3.Row]:
+    def list_payments(self, days_back: int = 7) -> list[sqlite3.Row]:
+        range_start = self._range_start(days_back)
         with self._lock:
             return list(self.conn.execute(
                 """SELECT m.*, a.name AS account_name, a.email AS account_email
                    FROM messages m JOIN accounts a ON a.id=m.account_id
                    WHERE m.category='Payment'
+                     AND substr(COALESCE(m.mail_date, m.first_seen_at), 1, 10) >= ?
                    ORDER BY COALESCE(m.mail_date, m.first_seen_at) DESC"""
-            ))
+                , (range_start,)))
 
     def set_setting(self, key: str, value: str) -> None:
         with self._lock, self.conn:
@@ -290,3 +303,4 @@ class AppDatabase:
     def close(self) -> None:
         with self._lock:
             self.conn.close()
+
