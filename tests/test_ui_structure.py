@@ -63,5 +63,15 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn("self.db.list_payments(self.display_days())", controller)
 
 
+    def test_mobile_dashboard_stays_in_its_own_sync_module(self):
+        controller = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
+        settings = (ROOT / "amzmail" / "views" / "settings.py").read_text(encoding="utf-8")
+        sync = (ROOT / "amzmail" / "mobile_sync.py").read_text(encoding="utf-8")
+        self.assertIn("from amzmail.mobile_sync import", controller)
+        self.assertIn("def sync_mobile_dashboard", controller)
+        self.assertIn("Mobile Dashboard", settings)
+        self.assertIn("def build_mobile_snapshot", sync)
+
+
 if __name__ == "__main__":
     unittest.main()
