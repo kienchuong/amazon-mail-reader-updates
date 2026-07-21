@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import tkinter as tk
@@ -15,8 +16,8 @@ class AccountsViewMixin:
         body.grid_columnconfigure(0, weight=5, uniform="accounts")
         body.grid_columnconfigure(1, weight=6, uniform="accounts")
 
-        left = ctk.CTkFrame(body, corner_radius=6)
-        right = ctk.CTkScrollableFrame(body, corner_radius=6, label_text="Thông tin account")
+        left = ctk.CTkFrame(body, corner_radius=10, fg_color=("#ffffff", "#202326"))
+        right = ctk.CTkScrollableFrame(body, corner_radius=10, label_text="Thông tin account")
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
         right.grid_columnconfigure(1, weight=1)
@@ -101,3 +102,4 @@ class AccountsViewMixin:
 
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+
