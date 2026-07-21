@@ -103,6 +103,7 @@ class ShellViewMixin:
         widths,
         selectmode="browse",
         center_columns=(),
+        right_columns=(),
         truncate_columns=(),
         status_columns=(),
     ):
@@ -113,6 +114,7 @@ class ShellViewMixin:
             headings,
             widths,
             center_columns=center_columns,
+            right_columns=right_columns,
             truncate_columns=truncate_columns,
             status_columns=status_columns,
         )
