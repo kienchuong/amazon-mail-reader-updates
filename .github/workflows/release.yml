@@ -1,0 +1,42 @@
+name: Build release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Read version
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw amzmail/__init__.py
+          if ($text -notmatch 'APP_VERSION\s*=\s*"([0-9.]+)"') {
+            throw 'Cannot read APP_VERSION.'
+          }
+          "VERSION=$($Matches[1])" >> $env:GITHUB_ENV
+
+      - name: Build ZIP and checksum
+        shell: pwsh
+        run: ./build_release.ps1 -Version $env:VERSION
+
+      - name: Publish new version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$env:VERSION"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists."
+            exit 0
+          }
+          $zip = "dist/amazon-mail-reader-$env:VERSION-win64.zip"
+          gh release create $tag $zip "$zip.sha256" --title "Amazon Mail Reader $env:VERSION" --notes "Ban cap nhat tu dong Amazon Mail Reader $env:VERSION."
