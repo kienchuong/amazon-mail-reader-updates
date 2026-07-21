@@ -1,4 +1,4 @@
-# Amazon Mail Reader 0.3.0
+# Amazon Mail Reader 0.3.1
 
 Ứng dụng Windows chỉ đọc để xem tập trung mail Amazon, cảnh báo bảo mật và thống kê payment.
 
@@ -56,7 +56,7 @@ App kiểm tra SHA-256 trước khi cài, giữ bản chương trình cũ ở th
 
 ## Chạy từ mã nguồn
 
-Yêu cầu Python 3.12 trên Windows có Tkinter và thư viện trong `requirements.txt`. File `run_app.bat` ưu tiên Python đi kèm Codex, sau đó tự tìm Python đã cài trên Windows. Nếu thiếu CustomTkinter, file này tự cài thư viện trước khi mở app.
+Yêu cầu Python 3.12 trên Windows có Tkinter và thư viện trong `requirements.txt`. File `run_app.bat` ưu tiên Python đi kèm Codex, sau đó tự tìm Python đã cài trên Windows. Nếu thiếu CustomTkinter hoặc tksheet, file này tự cài thư viện trước khi mở app.
 
 ## Cấu trúc chính
 
@@ -66,4 +66,3 @@ Yêu cầu Python 3.12 trên Windows có Tkinter và thư viện trong `requirem
 - `amzmail/google_sheets.py`: xuất CSV và đồng bộ Google Sheet.
 - `amzmail/microsoft_graph.py`: đăng nhập OAuth và đọc Outlook.
 - `amzmail/imap_reader.py`: đọc Gmail, Yahoo và email tên miền qua IMAP.
-
