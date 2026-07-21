@@ -1,6 +1,5 @@
-
 param(
-    [string]$Version = "0.3.4"
+    [string]$Version = "0.4.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +17,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $project "run_app.bat") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "README.md") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "HUONG_DAN_MICROSOFT.md") -Destination $stage
+    Copy-Item -LiteralPath (Join-Path $project "HUONG_DAN_GOOGLE.md") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "requirements.txt") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "google_sheets_webhook.gs") -Destination $stage
     Copy-Item -LiteralPath (Join-Path $project "build_release.ps1") -Destination $stage
@@ -33,4 +33,3 @@ try {
 finally {
     if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
 }
-
