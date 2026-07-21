@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import tkinter as tk
@@ -25,7 +26,7 @@ class PaymentsViewMixin:
             row=1, column=0, sticky="ew", padx=20, pady=(0, 10)
         )
 
-        table_frame = ctk.CTkFrame(parent, corner_radius=6)
+        table_frame = ctk.CTkFrame(parent, corner_radius=10, fg_color=("#ffffff", "#202326"))
         table_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 18))
         columns = ("date", "account", "email", "money", "payment_id")
         headings = {"date": "Ngày", "account": "Account", "email": "Email", "money": "Tiền", "payment_id": "Payment ID"}
@@ -41,3 +42,4 @@ class PaymentsViewMixin:
 
         parent.grid_rowconfigure(2, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+
