@@ -3,6 +3,7 @@ from __future__ import annotations
 import queue
 import os
 import threading
+import webbrowser
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ import customtkinter as ctk
 from amzmail import APP_NAME, APP_VERSION
 from amzmail.db import AppDatabase
 from amzmail.google_sheets import export_csv, post_to_google_sheet
+from amzmail.mobile_sync import build_mobile_snapshot, post_mobile_action
 from amzmail.google_gmail import (
     fetch_google_body,
     interactive_google_login,
@@ -412,6 +414,8 @@ class AmazonMailReaderApp(
                 self.set_status("Quét xong.")
                 if self.google_auto_sync_var.get():
                     self.after(100, self.export_to_google_sheet)
+                if self.mobile_auto_sync_var.get():
+                    self.after(150, self.sync_mobile_dashboard)
             elif kind == "status":
                 self.set_status(payload)
                 self.refresh_accounts()
@@ -602,6 +606,7 @@ class AmazonMailReaderApp(
         self.db.set_setting("google_webhook_url", self.webhook_url_var.get().strip())
         self.db.set_secret_setting("google_webhook_secret", self.webhook_secret_var.get().strip())
         self.db.set_setting("google_auto_sync", "1" if self.google_auto_sync_var.get() else "0")
+        self.db.set_setting("mobile_auto_sync", "1" if self.mobile_auto_sync_var.get() else "0")
         self.set_status("Đã lưu cấu hình Microsoft và Google Sheet.")
 
     def save_google_client_settings(self) -> None:
@@ -714,6 +719,96 @@ class AmazonMailReaderApp(
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
+
+    def _mobile_body(self, message) -> str:
+        account = self.db.get_account(int(message["account_id"]))
+        if not account:
+            raise RuntimeError("Không tìm thấy account của mail này.")
+        if account["auth_type"] == "microsoft_oauth":
+            return fetch_microsoft_body(account, self.db, self.microsoft_client_id_var.get().strip(), message["uid"])
+        if account["auth_type"] == "google_oauth":
+            return fetch_google_body(
+                account,
+                self.db,
+                self.google_client_id_var.get().strip(),
+                self.google_client_secret_var.get().strip(),
+                message["uid"],
+            )
+        return fetch_message_body(account, self.db.account_password(account), message["uid"])
+
+    def sync_mobile_dashboard(self) -> None:
+        self.save_sheet_settings()
+        url = self.webhook_url_var.get().strip()
+        secret = self.webhook_secret_var.get().strip()
+        if not url or not secret:
+            self.set_status("Chưa đồng bộ Mobile Dashboard: thiếu Webhook URL hoặc Secret.")
+            return
+        days = self.display_days()
+        messages = self.db.list_messages(days_back=days)
+        payments = self.db.list_payments(days)
+        self.set_status("Đang đồng bộ Mobile Dashboard...")
+
+        def worker():
+            try:
+                snapshot = build_mobile_snapshot(messages, payments, days, self._mobile_body)
+                status, body = post_mobile_action(url, secret, **snapshot)
+                self.scan_queue.put(("status", f"Mobile Dashboard trả về HTTP {status}: {body[:120]}"))
+            except Exception as exc:
+                self.scan_queue.put(("error", f"Đồng bộ Mobile Dashboard thất bại: {exc}"))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self.poll_scan_queue)
+
+    def set_mobile_pin(self) -> None:
+        self.save_sheet_settings()
+        url = self.webhook_url_var.get().strip()
+        secret = self.webhook_secret_var.get().strip()
+        pin = self.mobile_pin_var.get().strip()
+        if not url or not secret:
+            messagebox.showwarning("Thiếu cấu hình", "Hãy nhập Webhook URL và Secret trước.")
+            return
+        if len(pin) < 4:
+            messagebox.showwarning("PIN quá ngắn", "PIN Mobile Dashboard cần ít nhất 4 ký tự.")
+            return
+        self.set_status("Đang đặt PIN Mobile Dashboard...")
+
+        def worker():
+            try:
+                status, body = post_mobile_action(url, secret, "mobile_set_pin", pin=pin)
+                self.scan_queue.put(("status", f"Đã đặt PIN Mobile Dashboard (HTTP {status}). {body[:120]}"))
+            except Exception as exc:
+                self.scan_queue.put(("error", f"Không đặt được PIN Mobile Dashboard: {exc}"))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self.poll_scan_queue)
+
+    def revoke_mobile_devices(self) -> None:
+        if not messagebox.askyesno("Thu hồi thiết bị", "Tất cả điện thoại và Mac đang mở dashboard sẽ phải nhập PIN lại. Tiếp tục?"):
+            return
+        self.save_sheet_settings()
+        url = self.webhook_url_var.get().strip()
+        secret = self.webhook_secret_var.get().strip()
+        if not url or not secret:
+            messagebox.showwarning("Thiếu cấu hình", "Hãy nhập Webhook URL và Secret trước.")
+            return
+        self.set_status("Đang thu hồi thiết bị Mobile Dashboard...")
+
+        def worker():
+            try:
+                status, body = post_mobile_action(url, secret, "mobile_revoke_devices")
+                self.scan_queue.put(("status", f"Đã thu hồi thiết bị Mobile Dashboard (HTTP {status}). {body[:120]}"))
+            except Exception as exc:
+                self.scan_queue.put(("error", f"Không thu hồi được thiết bị: {exc}"))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self.poll_scan_queue)
+
+    def open_mobile_dashboard(self) -> None:
+        url = self.webhook_url_var.get().strip()
+        if not url:
+            messagebox.showwarning("Thiếu Webhook URL", "Hãy nhập Webhook URL trước.")
+            return
+        webbrowser.open(url)
 
     def set_status(self, value: str) -> None:
         self.status_var.set(value)
