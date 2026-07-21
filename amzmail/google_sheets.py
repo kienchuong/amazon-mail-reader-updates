@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import csv
@@ -18,12 +19,27 @@ PAYMENT_COLUMNS = [
     "trusted_sender",
 ]
 
+GOOGLE_SHEET_COLUMNS = [
+    "mail_date",
+    "account_name",
+    "currency",
+    "amount",
+    "payment_id",
+]
+
 
 def payment_rows(payments) -> list[dict]:
     rows = []
     for row in payments:
         rows.append({column: row[column] for column in PAYMENT_COLUMNS})
     return rows
+
+
+def google_sheet_rows(payments) -> list[dict]:
+    return [
+        {column: row[column] for column in GOOGLE_SHEET_COLUMNS}
+        for row in payments
+    ]
 
 
 def export_csv(payments, path: Path) -> Path:
@@ -39,7 +55,7 @@ def export_csv(payments, path: Path) -> Path:
 def post_to_google_sheet(webhook_url: str, secret: str, payments) -> tuple[int, str]:
     payload = {
         "secret": secret,
-        "rows": payment_rows(payments),
+        "rows": google_sheet_rows(payments),
     }
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
@@ -51,3 +67,4 @@ def post_to_google_sheet(webhook_url: str, secret: str, payments) -> tuple[int, 
     with urllib.request.urlopen(request, timeout=30) as response:
         body = response.read().decode("utf-8", errors="replace")
         return response.status, body
+
