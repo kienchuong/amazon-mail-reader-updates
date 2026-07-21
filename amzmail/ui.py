@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import queue
@@ -602,9 +603,9 @@ class AmazonMailReaderApp(
         if not value:
             return ""
         try:
-            return datetime.fromisoformat(value).strftime("%Y-%m-%d %H:%M")
+            return datetime.fromisoformat(value).strftime("%d/%m")
         except Exception:
-            return value[:16]
+            return value[:10]
 
     @staticmethod
     def payment_date(value: str | None) -> str:
@@ -614,3 +615,4 @@ class AmazonMailReaderApp(
             return datetime.fromisoformat(value).strftime("%d/%m")
         except Exception:
             return value[:10]
+
