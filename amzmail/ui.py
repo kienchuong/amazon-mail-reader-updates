@@ -140,6 +140,7 @@ class AmazonMailReaderApp(
                     "Có" if account["active"] else "Không",
                 ),
             )
+        self.accounts_tree.fit_columns()
 
     def on_account_selected(self, _event=None) -> None:
         selection = self.accounts_tree.selection()
@@ -381,6 +382,7 @@ class AmazonMailReaderApp(
                     amount,
                 ),
             )
+        self.inbox_tree.fit_columns()
 
     def on_message_selected(self, _event=None) -> None:
         selection = self.inbox_tree.selection()
@@ -459,6 +461,7 @@ class AmazonMailReaderApp(
                     row["payment_id"] or "",
                 ),
             )
+        self.payment_tree.fit_columns()
         summary_parts = [f"{currency}: {amount:,.2f}" for currency, amount in sorted(totals.items())]
         if unknown:
             summary_parts.append(f"{unknown} mail chưa tách được số tiền")
@@ -611,4 +614,3 @@ class AmazonMailReaderApp(
             return datetime.fromisoformat(value).strftime("%d/%m")
         except Exception:
             return value[:10]
-
