@@ -4,6 +4,8 @@ import base64
 import hashlib
 import json
 import secrets
+import shutil
+import subprocess
 import threading
 import time
 import urllib.error
@@ -13,6 +15,7 @@ import webbrowser
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 from .classifier import classify, extract_payment, looks_interesting, make_snippet
 from .imap_reader import ScanResult, _html_to_text
@@ -37,6 +40,34 @@ class _OAuthCallback:
     def __init__(self):
         self.params: dict[str, str] = {}
         self.event = threading.Event()
+
+
+def _edge_executable() -> str | None:
+    """Return a local Edge executable without relying on the default browser."""
+    candidates = [
+        shutil.which("msedge.exe"),
+        str(Path.home() / "AppData/Local/Microsoft/Edge/Application/msedge.exe"),
+        r"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        r"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def _open_microsoft_login(auth_url: str) -> str:
+    """Open OAuth in a separate Edge InPrivate session whenever Edge is available."""
+    edge = _edge_executable()
+    if edge:
+        try:
+            subprocess.Popen([edge, "--inprivate", "--new-window", auth_url], close_fds=True)
+            return "Edge InPrivate"
+        except OSError:
+            pass
+    if webbrowser.open(auth_url, new=1):
+        return "trình duyệt mặc định"
+    raise MicrosoftAuthError("Không mở được Edge InPrivate hoặc trình duyệt mặc định.")
 
 
 def _callback_handler(state: _OAuthCallback):
@@ -128,9 +159,11 @@ def interactive_login(client_id: str, timeout_seconds: int = 300) -> MicrosoftLo
     }
     auth_url = f"{AUTHORITY}/authorize?{urllib.parse.urlencode(params)}"
     server.timeout = 1
-    if not webbrowser.open(auth_url, new=1):
+    try:
+        _open_microsoft_login(auth_url)
+    except MicrosoftAuthError:
         server.server_close()
-        raise MicrosoftAuthError("Không mở được trình duyệt mặc định.")
+        raise
     deadline = time.monotonic() + timeout_seconds
     try:
         while not callback.event.is_set() and time.monotonic() < deadline:
