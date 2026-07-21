@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from tkinter import font as tkfont
@@ -68,6 +67,7 @@ class FluentDataTable(ctk.CTkFrame):
         widths: dict[str, int],
         *,
         center_columns: Iterable[str] = (),
+        right_columns: Iterable[str] = (),
         truncate_columns: Iterable[str] = (),
         status_columns: Iterable[str] = (),
     ) -> None:
@@ -76,6 +76,7 @@ class FluentDataTable(ctk.CTkFrame):
         self.headings = headings
         self.default_widths = dict(widths)
         self.center_columns = set(center_columns)
+        self.right_columns = set(right_columns)
         self.truncate_columns = set(truncate_columns)
         self.status_columns = set(status_columns)
         self._callbacks: list[Callable] = []
@@ -217,7 +218,7 @@ class FluentDataTable(ctk.CTkFrame):
 
     def _apply_alignment(self) -> None:
         for index, column in enumerate(self.columns):
-            alignment = "center" if column in self.center_columns else "w"
+            alignment = "e" if column in self.right_columns else "center" if column in self.center_columns else "w"
             self.sheet.align_columns(columns=index, align=alignment)
             header = self.sheet.span(num2alpha(index), header=True, table=False)
             self.sheet.align(header, align=alignment, redraw=False)
@@ -291,4 +292,3 @@ class FluentSplitPane(ctk.CTkFrame):
         left = max(500, min(width - 280, local_x))
         self.grid_columnconfigure(0, weight=left)
         self.grid_columnconfigure(2, weight=max(280, width - left))
-
