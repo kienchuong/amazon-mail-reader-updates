@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import queue
@@ -14,6 +13,12 @@ import customtkinter as ctk
 from amzmail import APP_NAME, APP_VERSION
 from amzmail.db import AppDatabase
 from amzmail.google_sheets import export_csv, post_to_google_sheet
+from amzmail.google_gmail import (
+    fetch_google_body,
+    interactive_google_login,
+    scan_google_account,
+    test_google_connection,
+)
 from amzmail.imap_reader import PROVIDER_PRESETS, fetch_message_body, scan_account, test_connection
 from amzmail.microsoft_graph import (
     fetch_microsoft_body,
@@ -68,25 +73,36 @@ class AmazonMailReaderApp(
         self.acc_port.set(str(preset["port"]))
         self.acc_folder.set(preset["folder"])
         self.acc_ssl.set(bool(preset["use_ssl"]))
-        is_outlook = provider == "Outlook"
+        is_oauth = provider in {"Outlook", "Gmail"}
         for label, widget in self.account_field_widgets:
-            if is_outlook:
+            if is_oauth:
                 label.grid_remove()
                 widget.grid_remove()
             else:
                 label.grid()
                 widget.grid()
-        if is_outlook:
+        if provider == "Outlook":
             self.ssl_check.grid_remove()
             self.microsoft_login_button.configure(state="normal")
+            self.google_login_button.configure(state="disabled")
             self.add_button.configure(state="disabled")
             self.test_button.configure(text="Kiểm tra Microsoft")
             self.account_note.set(
                 "Bấm Đăng nhập Microsoft. Trình duyệt sẽ mở trang chính thức của Microsoft; app không nhìn thấy hoặc lưu mật khẩu email."
             )
+        elif provider == "Gmail":
+            self.ssl_check.grid_remove()
+            self.microsoft_login_button.configure(state="disabled")
+            self.google_login_button.configure(state="normal")
+            self.add_button.configure(state="disabled")
+            self.test_button.configure(text="Kiểm tra Google")
+            self.account_note.set(
+                "Bấm Đăng nhập Google. Trình duyệt sẽ mở trang chính thức của Google; app không nhìn thấy hoặc lưu mật khẩu Gmail."
+            )
         else:
             self.ssl_check.grid()
             self.microsoft_login_button.configure(state="disabled")
+            self.google_login_button.configure(state="disabled")
             self.add_button.configure(state="normal")
             self.test_button.configure(text="Test IMAP")
             self.account_note.set(
@@ -177,6 +193,9 @@ class AmazonMailReaderApp(
         if self.acc_provider.get() == "Outlook":
             self.login_microsoft()
             return
+        if self.acc_provider.get() == "Gmail":
+            self.login_google()
+            return
         if not self.validate_account_form(require_password=True):
             return
         self.db.add_imap_account(self.account_form_data())
@@ -189,13 +208,13 @@ class AmazonMailReaderApp(
             messagebox.showinfo("Chọn account", "Vui lòng chọn account cần cập nhật.")
             return
         account = self.db.get_account(self.selected_account_id)
-        if account and account["auth_type"] == "microsoft_oauth":
+        if account and account["auth_type"] in {"microsoft_oauth", "google_oauth"}:
             if not self.acc_name.get().strip():
                 messagebox.showwarning("Thiếu tên", "Vui lòng nhập tên account.")
                 return
             self.db.update_account_name_active(self.selected_account_id, self.acc_name.get(), self.acc_active.get())
             self.refresh_accounts()
-            self.set_status("Đã cập nhật account Microsoft.")
+            self.set_status("Đã cập nhật account OAuth.")
             return
         update_password = bool(self.acc_password.get().strip())
         if not self.validate_account_form(require_password=False):
@@ -234,6 +253,25 @@ class AmazonMailReaderApp(
                     self.scan_queue.put(("error", f"Kết nối Microsoft thất bại: {exc}"))
 
             threading.Thread(target=microsoft_worker, daemon=True).start()
+            self.after(150, self.poll_scan_queue)
+            return
+        if self.acc_provider.get() == "Gmail":
+            if self.selected_account_id is None:
+                messagebox.showinfo("Chưa có account", "Hãy bấm Đăng nhập Google trước.")
+                return
+            account = self.db.get_account(self.selected_account_id)
+            client_id = self.google_client_id_var.get().strip()
+            self.set_status("Đang kiểm tra Google...")
+
+            def google_worker():
+                try:
+                    test_google_connection(account, self.db, client_id)
+                    self.scan_queue.put(("status", "Kết nối Google thành công."))
+                except Exception as exc:
+                    self.db.set_connection_status(int(account["id"]), "Cần đăng nhập Google lại")
+                    self.scan_queue.put(("error", f"Kết nối Google thất bại: {exc}"))
+
+            threading.Thread(target=google_worker, daemon=True).start()
             self.after(150, self.poll_scan_queue)
             return
         if not self.validate_account_form(require_password=self.selected_account_id is None):
@@ -279,6 +317,30 @@ class AmazonMailReaderApp(
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
 
+    def login_google(self) -> None:
+        client_id = self.google_client_id_var.get().strip()
+        if not client_id:
+            messagebox.showwarning(
+                "Chưa có Google Client ID",
+                "Mở tab Cài đặt, nhập Google Client ID và lưu trước khi đăng nhập.",
+            )
+            self.show_page("settings")
+            return
+        self.db.set_setting("google_client_id", client_id)
+        name = self.acc_name.get().strip()
+        self.set_status("Đang mở Edge InPrivate để đăng nhập Google...")
+
+        def worker():
+            try:
+                login = interactive_google_login(client_id)
+                account_id = self.db.add_or_update_google_account(login.profile, login.token_json, name)
+                self.scan_queue.put(("google_login", (account_id, login.profile["email"])))
+            except Exception as exc:
+                self.scan_queue.put(("error", f"Đăng nhập Google thất bại: {exc}"))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.after(150, self.poll_scan_queue)
+
     def start_scan(self) -> None:
         try:
             days = int(self.days_back_var.get())
@@ -303,6 +365,15 @@ class AmazonMailReaderApp(
                             account,
                             self.db,
                             self.microsoft_client_id_var.get().strip(),
+                            days,
+                            max_messages,
+                            self.include_general_var.get(),
+                        )
+                    elif account["auth_type"] == "google_oauth":
+                        result = scan_google_account(
+                            account,
+                            self.db,
+                            self.google_client_id_var.get().strip(),
                             days,
                             max_messages,
                             self.include_general_var.get(),
@@ -355,6 +426,17 @@ class AmazonMailReaderApp(
                 self.on_account_selected()
                 self.set_status(f"Đã kết nối Microsoft: {email}")
                 messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối account {email}.")
+            elif kind == "google_login":
+                account_id, email = payload
+                self.refresh_accounts()
+                self.clear_account_form()
+                self.acc_provider.set("Gmail")
+                self.on_provider_changed()
+                self.accounts_tree.selection_set(str(account_id))
+                self.accounts_tree.focus(str(account_id))
+                self.on_account_selected()
+                self.set_status(f"Đã kết nối Google: {email}")
+                messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối Gmail {email}.")
             elif kind == "update_available":
                 self.handle_update_available(payload)
             elif kind == "update_downloaded":
@@ -423,6 +505,10 @@ class AmazonMailReaderApp(
                 if account["auth_type"] == "microsoft_oauth":
                     body = fetch_microsoft_body(
                         account, self.db, self.microsoft_client_id_var.get().strip(), message["uid"]
+                    )
+                elif account["auth_type"] == "google_oauth":
+                    body = fetch_google_body(
+                        account, self.db, self.google_client_id_var.get().strip(), message["uid"]
                     )
                 else:
                     password = self.db.account_password(account)
@@ -503,10 +589,19 @@ class AmazonMailReaderApp(
 
     def save_sheet_settings(self) -> None:
         self.db.set_setting("microsoft_client_id", self.microsoft_client_id_var.get().strip())
+        self.db.set_setting("google_client_id", self.google_client_id_var.get().strip())
         self.db.set_setting("google_webhook_url", self.webhook_url_var.get().strip())
         self.db.set_secret_setting("google_webhook_secret", self.webhook_secret_var.get().strip())
         self.db.set_setting("google_auto_sync", "1" if self.google_auto_sync_var.get() else "0")
         self.set_status("Đã lưu cấu hình Microsoft và Google Sheet.")
+
+    def save_google_client_settings(self) -> None:
+        client_id = self.google_client_id_var.get().strip()
+        if not client_id:
+            messagebox.showwarning("Thiếu Google Client ID", "Hãy nhập Google Client ID trước khi lưu.")
+            return
+        self.db.set_setting("google_client_id", client_id)
+        self.set_status("Đã lưu Google Client ID.")
 
     def save_app_settings(self) -> None:
         try:
@@ -630,4 +725,3 @@ class AmazonMailReaderApp(
             return datetime.fromisoformat(value).strftime("%d/%m")
         except Exception:
             return value[:10]
-
