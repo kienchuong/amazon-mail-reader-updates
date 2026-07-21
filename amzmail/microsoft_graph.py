@@ -47,8 +47,8 @@ def _edge_executable() -> str | None:
     candidates = [
         shutil.which("msedge.exe"),
         str(Path.home() / "AppData/Local/Microsoft/Edge/Application/msedge.exe"),
-        r"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-        r"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
     ]
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
