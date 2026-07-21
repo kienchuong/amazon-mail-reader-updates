@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import tkinter as tk
@@ -75,7 +76,11 @@ class InboxViewMixin:
             anchor="w", padx=14, pady=(12, 8)
         )
         self.message_text = ctk.CTkTextbox(
-            detail_frame, wrap="word", font=("Segoe UI Variable", 13), corner_radius=4
+            detail_frame,
+            wrap="word",
+            font=("Segoe UI Variable", 13),
+            corner_radius=8,
+            fg_color=("#ffffff", "#17191c"),
         )
         self.message_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self.message_text.insert("1.0", "Chọn một mail để đọc nội dung.")
@@ -83,3 +88,4 @@ class InboxViewMixin:
 
         parent.grid_rowconfigure(2, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+
