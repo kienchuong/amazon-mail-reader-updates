@@ -1,4 +1,3 @@
-
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -78,6 +77,13 @@ class RangeAndSheetTests(unittest.TestCase):
         self.assertIn("const COLUMNS = ['Ngày', 'Account name', 'Currency', 'Amount', 'Payment ID']", script)
 
 
+    def test_sheet_script_includes_protected_mobile_snapshot(self):
+        script = (Path(__file__).resolve().parents[1] / "google_sheets_webhook.gs").read_text(encoding="utf-8")
+        self.assertIn("MOBILE_INBOX_SHEET", script)
+        self.assertIn("mobile_snapshot", script)
+        self.assertIn("mobileUnlock", script)
+        self.assertIn("mobile_revoke_devices", script)
+
+
 if __name__ == "__main__":
     unittest.main()
-
