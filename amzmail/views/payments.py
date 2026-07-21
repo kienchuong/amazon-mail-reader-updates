@@ -10,7 +10,11 @@ class PaymentsViewMixin:
         header = ctk.CTkFrame(parent, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 10))
         header.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(header, text="Thống kê payment", font=ctk.CTkFont(size=20, weight="bold")).grid(
+        ctk.CTkLabel(
+            header,
+            text="Thống kê payment",
+            font=ctk.CTkFont(family="Segoe UI Variable", size=20, weight="bold"),
+        ).grid(
             row=0, column=0, sticky="w"
         )
         ctk.CTkButton(header, text="Xuất CSV", width=92, command=self.export_payments_csv).grid(row=0, column=1, padx=4)
@@ -26,8 +30,14 @@ class PaymentsViewMixin:
         columns = ("date", "account", "email", "money", "payment_id")
         headings = {"date": "Ngày", "account": "Account", "email": "Email", "money": "Tiền", "payment_id": "Payment ID"}
         widths = {"date": 75, "account": 130, "email": 300, "money": 160, "payment_id": 230}
-        self.payment_tree = self._create_tree(table_frame, columns, headings, widths)
+        self.payment_tree = self._create_tree(
+            table_frame,
+            columns,
+            headings,
+            widths,
+            center_columns=("date", "account", "money", "payment_id"),
+            truncate_columns=("email",),
+        )
 
         parent.grid_rowconfigure(2, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
