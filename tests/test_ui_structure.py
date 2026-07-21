@@ -1,4 +1,3 @@
-
 import ast
 import unittest
 from pathlib import Path
@@ -32,7 +31,8 @@ class UiStructureTests(unittest.TestCase):
 
     def test_payment_columns_remain_compact(self):
         source = (ROOT / "amzmail" / "views" / "payments.py").read_text(encoding="utf-8")
-        self.assertIn('(\"date\", \"account\", \"email\", \"money\", \"payment_id\")', source)
+        self.assertIn('(\"date\", \"account\", \"email\", \"currency\", \"amount\", \"payment_id\")', source)
+        self.assertIn('right_columns=(\"currency\", \"amount\")', source)
         self.assertNotIn('"subject"', source)
 
     def test_fluent_table_supports_windows_11_layout(self):
@@ -63,4 +63,3 @@ class UiStructureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
