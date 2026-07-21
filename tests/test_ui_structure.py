@@ -1,3 +1,4 @@
+
 import ast
 import unittest
 from pathlib import Path
@@ -41,8 +42,17 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn('"double_click_column_resize"', source)
         self.assertIn("def shorten", source)
         self.assertIn("def fit_columns", source)
+        self.assertIn("FLUENT_DARK_TABLE_OPTIONS", source)
+        self.assertIn('"table_bg": "#17191c"', source)
+        self.assertIn('"table_grid_fg": "#17191c"', source)
+        self.assertIn('"header_grid_fg": "#34383d"', source)
         ast.parse(source)
+
+    def test_inbox_date_is_compact(self):
+        source = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn('strftime("%d/%m")', source)
 
 
 if __name__ == "__main__":
     unittest.main()
+
