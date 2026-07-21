@@ -559,7 +559,6 @@ class AmazonMailReaderApp(
             else:
                 unknown += 1
             amount = "" if row["amount"] is None else f"{row['amount']:,.2f}"
-            money = " ".join(part for part in (row["currency"] or "", amount) if part)
             self.payment_tree.insert(
                 "",
                 "end",
@@ -567,7 +566,8 @@ class AmazonMailReaderApp(
                     self.payment_date(row["mail_date"]),
                     row["account_name"],
                     row["account_email"],
-                    money,
+                    row["currency"] or "",
+                    amount,
                     row["payment_id"] or "",
                 ),
             )
