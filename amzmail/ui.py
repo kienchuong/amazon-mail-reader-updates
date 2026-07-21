@@ -73,7 +73,7 @@ class AmazonMailReaderApp(
         self.acc_port.set(str(preset["port"]))
         self.acc_folder.set(preset["folder"])
         self.acc_ssl.set(bool(preset["use_ssl"]))
-        is_oauth = provider in {"Outlook", "Gmail"}
+        is_oauth = provider == "Outlook"
         for label, widget in self.account_field_widgets:
             if is_oauth:
                 label.grid_remove()
@@ -90,7 +90,7 @@ class AmazonMailReaderApp(
             self.account_note.set(
                 "Bấm Đăng nhập Microsoft. Trình duyệt sẽ mở trang chính thức của Microsoft; app không nhìn thấy hoặc lưu mật khẩu email."
             )
-        elif provider == "Gmail":
+        elif provider == "Google OAuth":
             self.ssl_check.grid_remove()
             self.microsoft_login_button.configure(state="disabled")
             self.google_login_button.configure(state="normal")
@@ -193,7 +193,7 @@ class AmazonMailReaderApp(
         if self.acc_provider.get() == "Outlook":
             self.login_microsoft()
             return
-        if self.acc_provider.get() == "Gmail":
+        if self.acc_provider.get() == "Google OAuth":
             self.login_google()
             return
         if not self.validate_account_form(require_password=True):
@@ -255,7 +255,7 @@ class AmazonMailReaderApp(
             threading.Thread(target=microsoft_worker, daemon=True).start()
             self.after(150, self.poll_scan_queue)
             return
-        if self.acc_provider.get() == "Gmail":
+        if self.acc_provider.get() == "Google OAuth":
             if self.selected_account_id is None:
                 messagebox.showinfo("Chưa có account", "Hãy bấm Đăng nhập Google trước.")
                 return
