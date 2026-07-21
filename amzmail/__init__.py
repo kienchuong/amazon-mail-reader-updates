@@ -1,4 +1,5 @@
 """Amazon Mail Reader."""
 
 APP_NAME = "Amazon Mail Reader"
-APP_VERSION = "0.2.5"
+APP_VERSION = "0.3.0"
+
