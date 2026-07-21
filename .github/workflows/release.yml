@@ -3,6 +3,8 @@ name: Build release
 on:
   push:
     branches: [main]
+    paths:
+      - "amzmail/__init__.py"
 
 permissions:
   contents: write
