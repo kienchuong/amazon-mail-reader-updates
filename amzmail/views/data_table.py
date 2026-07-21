@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from tkinter import font as tkfont
@@ -8,6 +9,45 @@ from tksheet import Sheet, num2alpha
 
 
 ELLIPSIS = "…"
+
+
+# tksheet's stock dark theme uses a pure black table canvas. Keep the grid on
+# the same charcoal surface as the CustomTkinter shell instead.
+FLUENT_DARK_TABLE_OPTIONS = {
+    "frame_bg": "#202326",
+    "table_bg": "#17191c",
+    # Keep the body clean: separators stay in the header where columns are resized.
+    "table_grid_fg": "#17191c",
+    "table_fg": "#eef1f5",
+    "table_editor_bg": "#17191c",
+    "table_editor_fg": "#eef1f5",
+    "header_bg": "#202326",
+    # tksheet uses one-pixel canvas lines. Lower contrast makes them read like
+    # the subtle dividers in Windows Explorer instead of a heavy spreadsheet.
+    "header_border_fg": "#34383d",
+    "header_grid_fg": "#34383d",
+    "header_fg": "#e7ebf0",
+    "header_editor_bg": "#202326",
+    "index_bg": "#202326",
+    "index_border_fg": "#34383d",
+    "top_left_bg": "#202326",
+    "outline_color": "#30343a",
+    "table_selected_cells_bg": "#263f59",
+    "table_selected_rows_bg": "#263f59",
+    "table_selected_columns_bg": "#263f59",
+    "vertical_scroll_background": "#2a2d31",
+    "horizontal_scroll_background": "#2a2d31",
+    "vertical_scroll_troughcolor": "#202326",
+    "horizontal_scroll_troughcolor": "#202326",
+    "vertical_scroll_bordercolor": "#202326",
+    "horizontal_scroll_bordercolor": "#202326",
+    "vertical_scroll_lightcolor": "#202326",
+    "horizontal_scroll_lightcolor": "#202326",
+    "vertical_scroll_darkcolor": "#202326",
+    "horizontal_scroll_darkcolor": "#202326",
+    "vertical_scroll_not_active_bg": "#4b5159",
+    "horizontal_scroll_not_active_bg": "#4b5159",
+}
 
 
 def shorten(value: Any, limit: int = 25) -> str:
@@ -31,7 +71,7 @@ class FluentDataTable(ctk.CTkFrame):
         truncate_columns: Iterable[str] = (),
         status_columns: Iterable[str] = (),
     ) -> None:
-        super().__init__(parent, corner_radius=6, fg_color="transparent")
+        super().__init__(parent, corner_radius=10, fg_color=("#ffffff", "#202326"))
         self.columns = tuple(columns)
         self.headings = headings
         self.default_widths = dict(widths)
@@ -44,8 +84,8 @@ class FluentDataTable(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        tools = ctk.CTkFrame(self, height=32, corner_radius=0, fg_color="transparent")
-        tools.grid(row=0, column=0, sticky="ew", padx=8, pady=(5, 0))
+        tools = ctk.CTkFrame(self, height=34, corner_radius=8, fg_color=("#f4f6f8", "#202326"))
+        tools.grid(row=0, column=0, sticky="ew", padx=8, pady=(7, 0))
         ctk.CTkLabel(
             tools,
             text="Kéo vạch cột để đổi độ rộng • nhấp đúp để tự căn",
@@ -86,7 +126,7 @@ class FluentDataTable(ctk.CTkFrame):
             scrollbar_theme_inheritance="clam",
             scrollbar_show_arrows=False,
         )
-        self.sheet.grid(row=1, column=0, sticky="nsew", padx=6, pady=(4, 6))
+        self.sheet.grid(row=1, column=0, sticky="nsew", padx=8, pady=(4, 8))
         self.sheet.hide("row_index")
         self.sheet.enable_bindings(
             "single_select",
@@ -97,6 +137,7 @@ class FluentDataTable(ctk.CTkFrame):
             "double_click_column_resize",
         )
         self.sheet.extra_bindings("all_select_events", self._selection_changed)
+        self._configure_sheet_theme()
         self._apply_alignment()
         self.reset_columns()
 
@@ -200,8 +241,14 @@ class FluentDataTable(ctk.CTkFrame):
             self.sheet.column_width(index, width=width, redraw=False)
         self.sheet.redraw()
 
+    def _configure_sheet_theme(self) -> None:
+        dark = ctk.get_appearance_mode() == "Dark"
+        self.sheet.change_theme("dark" if dark else "light blue", redraw=False)
+        if dark:
+            self.sheet.set_options(redraw=False, **FLUENT_DARK_TABLE_OPTIONS)
+
     def apply_appearance(self) -> None:
-        self.sheet.change_theme("dark" if ctk.get_appearance_mode() == "Dark" else "light blue", redraw=False)
+        self._configure_sheet_theme()
         for iid, values in self._full_values.items():
             row = self.sheet.itemrow(iid)
             self._decorate_row(row, values, [shorten(v) for v in values])
@@ -244,3 +291,4 @@ class FluentSplitPane(ctk.CTkFrame):
         left = max(500, min(width - 280, local_x))
         self.grid_columnconfigure(0, weight=left)
         self.grid_columnconfigure(2, weight=max(280, width - left))
+
