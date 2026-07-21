@@ -22,7 +22,19 @@ class SettingsViewMixin:
             justify="left", anchor="w",
         ).grid(row=2, column=1, sticky="ew", padx=14, pady=(0, 12))
 
-        google = self._settings_section(scroll, "Xuất payment sang Google Sheet", 1)
+        gmail = self._settings_section(scroll, "Kết nối Gmail", 1)
+        self.google_client_id_var = tk.StringVar(value=self.db.get_setting("google_client_id"))
+        self._setting_entry(gmail, 0, "Google Client ID", self.google_client_id_var)
+        ctk.CTkButton(gmail, text="Lưu Google Client ID", width=155, command=self.save_google_client_settings).grid(
+            row=2, column=0, sticky="w", padx=14, pady=(0, 10)
+        )
+        ctk.CTkLabel(
+            gmail,
+            text="Dùng cho Đăng nhập Google. App chỉ xin quyền đọc Gmail, không lưu mật khẩu Gmail. Nếu OAuth còn ở Testing, Google sẽ yêu cầu đăng nhập lại sau 7 ngày.",
+            justify="left", anchor="w",
+        ).grid(row=3, column=0, columnspan=2, sticky="ew", padx=14, pady=(0, 12))
+
+        google = self._settings_section(scroll, "Xuất payment sang Google Sheet", 2)
         self.webhook_url_var = tk.StringVar(value=self.db.get_setting("google_webhook_url"))
         self.webhook_secret_var = tk.StringVar(value=self.db.get_secret_setting("google_webhook_secret"))
         self.google_auto_sync_var = tk.BooleanVar(value=self.db.get_setting("google_auto_sync", "1") == "1")
@@ -41,7 +53,7 @@ class SettingsViewMixin:
             justify="left", anchor="w", wraplength=820,
         ).grid(row=4, column=0, columnspan=2, sticky="ew", padx=14, pady=(2, 14))
 
-        updates = self._settings_section(scroll, "Cập nhật ứng dụng", 2)
+        updates = self._settings_section(scroll, "Cập nhật ứng dụng", 3)
         self.github_repo_var = tk.StringVar(value=self.db.get_setting("github_repo"))
         self._setting_entry(updates, 0, "Kho GitHub", self.github_repo_var)
         update_actions = ctk.CTkFrame(updates, fg_color="transparent")
@@ -71,4 +83,3 @@ class SettingsViewMixin:
         row = parent._content_row + offset
         ctk.CTkLabel(parent, text=label, anchor="w").grid(row=row, column=0, sticky="w", padx=14, pady=7)
         ctk.CTkEntry(parent, textvariable=variable, show=show).grid(row=row, column=1, sticky="ew", padx=14, pady=7)
-
