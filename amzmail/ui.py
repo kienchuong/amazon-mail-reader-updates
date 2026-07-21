@@ -6,8 +6,9 @@ import threading
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from tkinter import BooleanVar, StringVar, Tk, filedialog, messagebox
-from tkinter import ttk
+from tkinter import filedialog, messagebox
+
+import customtkinter as ctk
 
 from amzmail import APP_NAME, APP_VERSION
 from amzmail.db import AppDatabase
@@ -21,14 +22,24 @@ from amzmail.microsoft_graph import (
 )
 from amzmail.updater import UpdateError, check_for_update, download_update, launch_update, normalize_repo
 from amzmail.vault import Vault
+from amzmail.views import AccountsViewMixin, InboxViewMixin, PaymentsViewMixin, SettingsViewMixin, ShellViewMixin
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_UPDATE_REPO = "kienchuong/amazon-mail-reader-updates"
 
 
-class AmazonMailReaderApp(Tk):
+class AmazonMailReaderApp(
+    ShellViewMixin,
+    InboxViewMixin,
+    PaymentsViewMixin,
+    AccountsViewMixin,
+    SettingsViewMixin,
+    ctk.CTk,
+):
     def __init__(self, data_dir: Path, vault: Vault):
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
         super().__init__()
         self.title(f"{APP_NAME} {APP_VERSION}")
         self.geometry("1180x760")
@@ -48,288 +59,6 @@ class AmazonMailReaderApp(Tk):
         self.refresh_inbox()
         self.refresh_payments()
         self.after(1200, self.check_updates_silently)
-
-    def _build_style(self) -> None:
-        style = ttk.Style(self)
-        if "vista" in style.theme_names():
-            style.theme_use("vista")
-        style.configure("Treeview", rowheight=26)
-        style.configure("Heading.TLabel", font=("Segoe UI", 12, "bold"))
-        style.configure("Status.TLabel", foreground="#555")
-
-    def _build_ui(self) -> None:
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
-
-        self.inbox_tab = ttk.Frame(self.notebook)
-        self.payments_tab = ttk.Frame(self.notebook)
-        self.accounts_tab = ttk.Frame(self.notebook)
-        self.settings_tab = ttk.Frame(self.notebook)
-
-        self.notebook.add(self.inbox_tab, text="Inbox")
-        self.notebook.add(self.payments_tab, text="Payment")
-        self.notebook.add(self.accounts_tab, text="Accounts")
-        self.notebook.add(self.settings_tab, text="Cài đặt")
-
-        self._build_inbox_tab()
-        self._build_payments_tab()
-        self._build_accounts_tab()
-        self._build_settings_tab()
-
-        self.status_var = StringVar(value="Sẵn sàng. App chỉ đọc mail, không gửi/xóa/sửa email.")
-        ttk.Label(self, textvariable=self.status_var, style="Status.TLabel").pack(fill="x", padx=12, pady=(0, 8))
-
-    def _build_inbox_tab(self) -> None:
-        top = ttk.Frame(self.inbox_tab)
-        top.pack(fill="x", padx=8, pady=8)
-
-        ttk.Label(top, text="Loại").pack(side="left")
-        self.category_filter = StringVar(value="All")
-        category_box = ttk.Combobox(
-            top,
-            textvariable=self.category_filter,
-            values=["All", "Payment", "Reject", "Amazon Account", "Amazon", "Security", "General"],
-            width=18,
-            state="readonly",
-        )
-        category_box.pack(side="left", padx=(6, 14))
-        category_box.bind("<<ComboboxSelected>>", lambda _e: self.refresh_inbox())
-
-        ttk.Label(top, text="Tìm").pack(side="left")
-        self.search_var = StringVar()
-        search = ttk.Entry(top, textvariable=self.search_var, width=34)
-        search.pack(side="left", padx=(6, 8))
-        search.bind("<Return>", lambda _e: self.refresh_inbox())
-
-        ttk.Button(top, text="Tìm kiếm", command=self.refresh_inbox).pack(side="left", padx=4)
-        ttk.Button(top, text="Quét tất cả", command=self.start_scan).pack(side="left", padx=4)
-
-        ttk.Label(top, text="Số ngày").pack(side="left", padx=(18, 4))
-        self.days_back_var = StringVar(value="30")
-        ttk.Entry(top, textvariable=self.days_back_var, width=6).pack(side="left")
-
-        ttk.Label(top, text="Giới hạn/account").pack(side="left", padx=(14, 4))
-        self.max_messages_var = StringVar(value="300")
-        ttk.Entry(top, textvariable=self.max_messages_var, width=7).pack(side="left")
-
-        self.include_general_var = BooleanVar(value=False)
-        ttk.Checkbutton(top, text="Lưu cả mail thường", variable=self.include_general_var).pack(side="left", padx=12)
-
-        pane = ttk.PanedWindow(self.inbox_tab, orient="horizontal")
-        pane.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-
-        list_frame = ttk.Frame(pane)
-        detail_frame = ttk.Frame(pane)
-        pane.add(list_frame, weight=3)
-        pane.add(detail_frame, weight=2)
-
-        columns = ("date", "account", "category", "priority", "from", "subject", "amount")
-        self.inbox_tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
-        headings = {
-            "date": "Ngày",
-            "account": "Account",
-            "category": "Loại",
-            "priority": "Mức",
-            "from": "Người gửi",
-            "subject": "Tiêu đề",
-            "amount": "Payment",
-        }
-        widths = {"date": 145, "account": 110, "category": 105, "priority": 75, "from": 185, "subject": 320, "amount": 90}
-        for col in columns:
-            self.inbox_tree.heading(col, text=headings[col])
-            self.inbox_tree.column(col, width=widths[col], anchor="w")
-        self.inbox_tree.pack(side="left", fill="both", expand=True)
-        yscroll = ttk.Scrollbar(list_frame, orient="vertical", command=self.inbox_tree.yview)
-        self.inbox_tree.configure(yscrollcommand=yscroll.set)
-        yscroll.pack(side="right", fill="y")
-        self.inbox_tree.bind("<<TreeviewSelect>>", self.on_message_selected)
-
-        ttk.Label(detail_frame, text="Nội dung mail", style="Heading.TLabel").pack(anchor="w", pady=(0, 6))
-        self.message_text = self._text_widget(detail_frame)
-        self.message_text.insert("1.0", "Chọn một mail để đọc nội dung.")
-        self.message_text.configure(state="disabled")
-
-    def _build_payments_tab(self) -> None:
-        top = ttk.Frame(self.payments_tab)
-        top.pack(fill="x", padx=8, pady=8)
-        ttk.Label(top, text="Thống kê payment", style="Heading.TLabel").pack(side="left")
-        ttk.Button(top, text="Làm mới", command=self.refresh_payments).pack(side="right", padx=4)
-        ttk.Button(top, text="Xuất CSV", command=self.export_payments_csv).pack(side="right", padx=4)
-
-        self.payment_summary_var = StringVar(value="")
-        ttk.Label(self.payments_tab, textvariable=self.payment_summary_var).pack(anchor="w", padx=8, pady=(0, 8))
-
-        columns = ("date", "account", "email", "money", "payment_id")
-        self.payment_tree = ttk.Treeview(self.payments_tab, columns=columns, show="headings")
-        headings = {
-            "date": "Ngày",
-            "account": "Account",
-            "email": "Email",
-            "money": "Tiền",
-            "payment_id": "Payment ID",
-        }
-        widths = {"date": 75, "account": 130, "email": 300, "money": 160, "payment_id": 220}
-        for col in columns:
-            self.payment_tree.heading(col, text=headings[col])
-            self.payment_tree.column(col, width=widths[col], anchor="w")
-        self.payment_tree.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-
-    def _build_accounts_tab(self) -> None:
-        pane = ttk.PanedWindow(self.accounts_tab, orient="horizontal")
-        pane.pack(fill="both", expand=True, padx=8, pady=8)
-
-        left = ttk.Frame(pane)
-        right = ttk.Frame(pane)
-        pane.add(left, weight=2)
-        pane.add(right, weight=3)
-
-        columns = ("name", "email", "provider", "status", "active")
-        self.accounts_tree = ttk.Treeview(left, columns=columns, show="headings", selectmode="browse")
-        for col, title, width in [
-            ("name", "Account", 120),
-            ("email", "Email", 190),
-            ("provider", "Loại", 90),
-            ("status", "Kết nối", 150),
-            ("active", "Bật", 50),
-        ]:
-            self.accounts_tree.heading(col, text=title)
-            self.accounts_tree.column(col, width=width, anchor="w")
-        self.accounts_tree.pack(fill="both", expand=True)
-        self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
-
-        buttons = ttk.Frame(left)
-        buttons.pack(fill="x", pady=(8, 0))
-        ttk.Button(buttons, text="Làm mới", command=self.refresh_accounts).pack(side="left", padx=3)
-        ttk.Button(buttons, text="Xóa account khỏi app", command=self.delete_selected_account).pack(side="left", padx=3)
-
-        ttk.Label(right, text="Thông tin account", style="Heading.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
-        right.columnconfigure(1, weight=1)
-
-        self.acc_name = StringVar()
-        self.acc_email = StringVar()
-        self.acc_provider = StringVar(value="Outlook")
-        self.acc_host = StringVar(value="")
-        self.acc_port = StringVar(value="993")
-        self.acc_username = StringVar()
-        self.acc_password = StringVar()
-        self.acc_folder = StringVar(value="INBOX")
-        self.acc_ssl = BooleanVar(value=True)
-        self.acc_active = BooleanVar(value=True)
-
-        self.account_field_widgets = []
-        fields = [
-            ("Tên account", self.acc_name, "entry"),
-            ("Email nhận mail", self.acc_email, "entry"),
-            ("Loại mail", self.acc_provider, "provider"),
-            ("IMAP host", self.acc_host, "entry"),
-            ("IMAP port", self.acc_port, "entry"),
-            ("Username", self.acc_username, "entry"),
-            ("Password/App password", self.acc_password, "password"),
-            ("Folder", self.acc_folder, "entry"),
-        ]
-        for idx, (label, var, kind) in enumerate(fields, start=1):
-            label_widget = ttk.Label(right, text=label)
-            label_widget.grid(row=idx, column=0, sticky="w", pady=5, padx=(0, 8))
-            if kind == "provider":
-                widget = ttk.Combobox(right, textvariable=var, values=list(PROVIDER_PRESETS.keys()), state="readonly")
-                widget.bind("<<ComboboxSelected>>", lambda _e: self.on_provider_changed())
-            else:
-                show = "*" if kind == "password" else ""
-                widget = ttk.Entry(right, textvariable=var, show=show)
-            widget.grid(row=idx, column=1, sticky="ew", pady=5)
-            if idx >= 4:
-                self.account_field_widgets.append((label_widget, widget))
-
-        self.ssl_check = ttk.Checkbutton(right, text="Dùng SSL", variable=self.acc_ssl)
-        self.ssl_check.grid(row=9, column=1, sticky="w", pady=4)
-        ttk.Checkbutton(right, text="Bật quét account này", variable=self.acc_active).grid(row=10, column=1, sticky="w", pady=4)
-
-        action_row = ttk.Frame(right)
-        action_row.grid(row=11, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        self.microsoft_login_button = ttk.Button(action_row, text="Đăng nhập Microsoft", command=self.login_microsoft)
-        self.microsoft_login_button.pack(side="left", padx=4)
-        self.add_button = ttk.Button(action_row, text="Thêm IMAP", command=self.add_account)
-        self.add_button.pack(side="left", padx=4)
-        self.update_button = ttk.Button(action_row, text="Cập nhật", command=self.update_account)
-        self.update_button.pack(side="left", padx=4)
-        self.test_button = ttk.Button(action_row, text="Kiểm tra kết nối", command=self.test_current_account)
-        self.test_button.pack(side="left", padx=4)
-        ttk.Button(action_row, text="Xóa form", command=self.clear_account_form).pack(side="left", padx=4)
-
-        self.account_note = StringVar()
-        ttk.Label(right, textvariable=self.account_note, wraplength=540, foreground="#555").grid(
-            row=12, column=0, columnspan=2, sticky="w", pady=(16, 0)
-        )
-        self.on_provider_changed()
-
-    def _build_settings_tab(self) -> None:
-        frame = ttk.Frame(self.settings_tab)
-        frame.pack(fill="both", expand=True, padx=12, pady=12)
-        frame.columnconfigure(1, weight=1)
-
-        ttk.Label(frame, text="Kết nối Microsoft", style="Heading.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
-
-        self.microsoft_client_id_var = StringVar(value=self.db.get_setting("microsoft_client_id"))
-        ttk.Label(frame, text="Microsoft Client ID").grid(row=1, column=0, sticky="w", pady=8, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.microsoft_client_id_var).grid(row=1, column=1, sticky="ew", pady=8)
-        ttk.Label(
-            frame,
-            text="Chỉ nhập một lần. Đây là mã công khai của ứng dụng Microsoft, không phải mật khẩu email.",
-            foreground="#555",
-        ).grid(row=2, column=1, sticky="w")
-
-        ttk.Separator(frame).grid(row=3, column=0, columnspan=2, sticky="ew", pady=14)
-        ttk.Label(frame, text="Xuất payment sang Google Sheet", style="Heading.TLabel").grid(row=4, column=0, columnspan=2, sticky="w")
-
-        self.webhook_url_var = StringVar(value=self.db.get_setting("google_webhook_url"))
-        self.webhook_secret_var = StringVar(value=self.db.get_secret_setting("google_webhook_secret"))
-        self.google_auto_sync_var = BooleanVar(value=self.db.get_setting("google_auto_sync", "1") == "1")
-
-        ttk.Label(frame, text="Webhook URL").grid(row=5, column=0, sticky="w", pady=8, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.webhook_url_var).grid(row=5, column=1, sticky="ew", pady=8)
-        ttk.Label(frame, text="Secret").grid(row=6, column=0, sticky="w", pady=8, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.webhook_secret_var, show="*").grid(row=6, column=1, sticky="ew", pady=8)
-
-        buttons = ttk.Frame(frame)
-        buttons.grid(row=7, column=1, sticky="w", pady=(6, 12))
-        ttk.Button(buttons, text="Lưu cấu hình", command=self.save_sheet_settings).pack(side="left", padx=4)
-        ttk.Button(buttons, text="Xuất lên Google Sheet", command=self.export_to_google_sheet).pack(side="left", padx=4)
-        ttk.Checkbutton(
-            frame,
-            text="Tự đồng bộ sau khi quét",
-            variable=self.google_auto_sync_var,
-        ).grid(row=7, column=0, sticky="w", pady=(6, 12))
-
-        instructions = (
-            "File google_sheets_webhook.gs nằm cùng thư mục app. Tạo Google Sheet, mở Apps Script, dán nội dung file đó, "
-            "đổi SECRET, deploy Web App, rồi dán URL vào đây. Nếu chưa cấu hình Google Sheet, dùng nút Xuất CSV ở tab Payment."
-        )
-        ttk.Label(frame, text=instructions, wraplength=760, foreground="#555").grid(row=8, column=0, columnspan=2, sticky="w")
-
-        ttk.Separator(frame).grid(row=9, column=0, columnspan=2, sticky="ew", pady=14)
-        ttk.Label(frame, text="Cập nhật ứng dụng", style="Heading.TLabel").grid(row=10, column=0, columnspan=2, sticky="w")
-        self.github_repo_var = StringVar(value=self.db.get_setting("github_repo"))
-        ttk.Label(frame, text="Kho GitHub").grid(row=11, column=0, sticky="w", pady=8, padx=(0, 8))
-        ttk.Entry(frame, textvariable=self.github_repo_var).grid(row=11, column=1, sticky="ew", pady=8)
-        update_buttons = ttk.Frame(frame)
-        update_buttons.grid(row=12, column=1, sticky="w")
-        ttk.Button(update_buttons, text="Lưu", command=self.save_app_settings).pack(side="left", padx=4)
-        ttk.Button(update_buttons, text="Kiểm tra cập nhật", command=self.check_updates_interactive).pack(side="left", padx=4)
-        ttk.Label(frame, text=f"Phiên bản hiện tại: {APP_VERSION} | Dữ liệu: {self.data_dir}", foreground="#555").grid(
-            row=13, column=0, columnspan=2, sticky="w", pady=(10, 0)
-        )
-
-    def _text_widget(self, parent):
-        import tkinter as tk
-
-        frame = ttk.Frame(parent)
-        frame.pack(fill="both", expand=True)
-        text = tk.Text(frame, wrap="word", font=("Segoe UI", 10), relief="solid", borderwidth=1)
-        yscroll = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
-        text.configure(yscrollcommand=yscroll.set)
-        text.pack(side="left", fill="both", expand=True)
-        yscroll.pack(side="right", fill="y")
-        return text
 
     def on_provider_changed(self) -> None:
         provider = self.acc_provider.get()
@@ -381,7 +110,84 @@ class AmazonMailReaderApp(Tk):
         }
 
     def validate_account_form(self, require_password: bool) -> bool:
-        …811 tokens truncated…f account and account["auth_type"] == "microsoft_oauth":
+        data = self.account_form_data()
+        required = ["name", "email", "provider", "host", "port", "username"]
+        if require_password:
+            required.append("password")
+        missing = [field for field in required if not str(data[field]).strip()]
+        if missing:
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập đủ thông tin account.")
+            return False
+        try:
+            int(data["port"])
+        except ValueError:
+            messagebox.showwarning("Sai port", "IMAP port phải là số.")
+            return False
+        return True
+
+    def refresh_accounts(self) -> None:
+        self.accounts_tree.delete(*self.accounts_tree.get_children())
+        for account in self.db.get_accounts():
+            self.accounts_tree.insert(
+                "",
+                "end",
+                iid=str(account["id"]),
+                values=(
+                    account["name"],
+                    account["email"],
+                    account["provider"],
+                    account["connection_status"] or ("Đã lưu" if account["auth_type"] == "imap_password" else "Chưa kết nối"),
+                    "Có" if account["active"] else "Không",
+                ),
+            )
+
+    def on_account_selected(self, _event=None) -> None:
+        selection = self.accounts_tree.selection()
+        if not selection:
+            return
+        account = self.db.get_account(int(selection[0]))
+        if not account:
+            return
+        self.selected_account_id = int(account["id"])
+        self.acc_name.set(account["name"])
+        self.acc_email.set(account["email"])
+        self.acc_provider.set(account["provider"])
+        self.on_provider_changed()
+        self.acc_host.set(account["host"])
+        self.acc_port.set(str(account["port"]))
+        self.acc_username.set(account["username"])
+        self.acc_password.set("")
+        self.acc_folder.set(account["folder"])
+        self.acc_ssl.set(bool(account["use_ssl"]))
+        self.acc_active.set(bool(account["active"]))
+
+    def clear_account_form(self) -> None:
+        self.selected_account_id = None
+        self.acc_name.set("")
+        self.acc_email.set("")
+        self.acc_provider.set("Outlook")
+        self.on_provider_changed()
+        self.acc_username.set("")
+        self.acc_password.set("")
+        self.acc_active.set(True)
+
+    def add_account(self) -> None:
+        if self.acc_provider.get() == "Outlook":
+            self.login_microsoft()
+            return
+        if not self.validate_account_form(require_password=True):
+            return
+        self.db.add_imap_account(self.account_form_data())
+        self.clear_account_form()
+        self.refresh_accounts()
+        self.set_status("Đã thêm account.")
+
+    def update_account(self) -> None:
+        if self.selected_account_id is None:
+            messagebox.showinfo("Chọn account", "Vui lòng chọn account cần cập nhật.")
+            return
+        account = self.db.get_account(self.selected_account_id)
+        if account and account["auth_type"] == "microsoft_oauth":
             if not self.acc_name.get().strip():
                 messagebox.showwarning("Thiếu tên", "Vui lòng nhập tên account.")
                 return
@@ -454,7 +260,7 @@ class AmazonMailReaderApp(Tk):
                 "Chưa có Microsoft Client ID",
                 "Mở tab Cài đặt, nhập Microsoft Client ID và bấm Lưu trước khi đăng nhập.",
             )
-            self.notebook.select(self.settings_tab)
+            self.show_page("settings")
             return
         self.db.set_setting("microsoft_client_id", client_id)
         name = self.acc_name.get().strip()
@@ -805,3 +611,4 @@ class AmazonMailReaderApp(Tk):
             return datetime.fromisoformat(value).strftime("%d/%m")
         except Exception:
             return value[:10]
+
