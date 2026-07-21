@@ -55,7 +55,26 @@ class SettingsViewMixin:
             justify="left", anchor="w", wraplength=820,
         ).grid(row=4, column=0, columnspan=2, sticky="ew", padx=14, pady=(2, 14))
 
-        updates = self._settings_section(scroll, "Cập nhật ứng dụng", 3)
+        mobile = self._settings_section(scroll, "Mobile Dashboard", 3)
+        self.mobile_pin_var = tk.StringVar()
+        self.mobile_auto_sync_var = tk.BooleanVar(value=self.db.get_setting("mobile_auto_sync", "1") == "1")
+        self._setting_entry(mobile, 0, "PIN Mobile Dashboard", self.mobile_pin_var, show="*")
+        ctk.CTkSwitch(mobile, text="Tự đồng bộ sau khi quét", variable=self.mobile_auto_sync_var).grid(
+            row=2, column=0, sticky="w", padx=14, pady=10
+        )
+        mobile_actions = ctk.CTkFrame(mobile, fg_color="transparent")
+        mobile_actions.grid(row=2, column=1, sticky="w", padx=10, pady=8)
+        ctk.CTkButton(mobile_actions, text="Đặt PIN", width=90, command=self.set_mobile_pin).pack(side="left", padx=4)
+        ctk.CTkButton(mobile_actions, text="Đồng bộ ngay", width=120, command=self.sync_mobile_dashboard).pack(side="left", padx=4)
+        ctk.CTkButton(mobile_actions, text="Mở dashboard", width=125, command=self.open_mobile_dashboard).pack(side="left", padx=4)
+        ctk.CTkButton(mobile_actions, text="Thu hồi thiết bị", width=130, fg_color="#9b3636", hover_color="#7f2c2c", command=self.revoke_mobile_devices).pack(side="left", padx=4)
+        ctk.CTkLabel(
+            mobile,
+            text="Dùng cùng Webhook URL bên trên. Đặt PIN một lần, rồi mở URL trên điện thoại và thêm shortcut vào màn hình chính.",
+            justify="left", anchor="w", wraplength=820,
+        ).grid(row=3, column=0, columnspan=2, sticky="ew", padx=14, pady=(2, 14))
+
+        updates = self._settings_section(scroll, "Cập nhật ứng dụng", 4)
         self.github_repo_var = tk.StringVar(value=self.db.get_setting("github_repo"))
         self._setting_entry(updates, 0, "Kho GitHub", self.github_repo_var)
         update_actions = ctk.CTkFrame(updates, fg_color="transparent")
