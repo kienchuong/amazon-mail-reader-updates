@@ -1,4 +1,4 @@
-# Amazon Mail Reader 0.4.0
+# Amazon Mail Reader 0.5.0
 
 Ứng dụng Windows chỉ đọc để xem tập trung mail Amazon, cảnh báo bảo mật và thống kê payment.
 
@@ -41,6 +41,7 @@ Phiên bản này chưa có OAuth cho Gmail/Yahoo. Các loại này vẫn dùng 
 - Mục `Payment`: tổng hợp riêng theo từng loại tiền, xuất CSV hoặc Google Sheet.
 - Google Sheet tự đồng bộ sau khi quét khi tùy chọn `Tự đồng bộ sau khi quét` được bật.
 - Google Sheet dùng Apps Script trong file `google_sheets_webhook.gs`.
+- Mobile Dashboard dùng cùng Apps Script, đồng bộ snapshot sau khi quét và không đăng nhập email trên điện thoại. Xem `HUONG_DAN_MOBILE.md`.
 
 ## Dữ liệu và cập nhật
 
