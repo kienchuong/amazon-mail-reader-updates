@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import tkinter as tk
@@ -28,18 +27,21 @@ class PaymentsViewMixin:
 
         table_frame = ctk.CTkFrame(parent, corner_radius=10, fg_color=("#ffffff", "#202326"))
         table_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 18))
-        columns = ("date", "account", "email", "money", "payment_id")
-        headings = {"date": "Ngày", "account": "Account", "email": "Email", "money": "Tiền", "payment_id": "Payment ID"}
-        widths = {"date": 75, "account": 130, "email": 300, "money": 160, "payment_id": 230}
+        columns = ("date", "account", "email", "currency", "amount", "payment_id")
+        headings = {
+            "date": "Date", "account": "Account", "email": "Email",
+            "currency": "Currency", "amount": "Amount", "payment_id": "Payment ID",
+        }
+        widths = {"date": 75, "account": 130, "email": 300, "currency": 100, "amount": 145, "payment_id": 230}
         self.payment_tree = self._create_tree(
             table_frame,
             columns,
             headings,
             widths,
-            center_columns=("date", "account", "money", "payment_id"),
+            center_columns=("date", "account", "payment_id"),
+            right_columns=("currency", "amount"),
             truncate_columns=("email",),
         )
 
         parent.grid_rowconfigure(2, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
