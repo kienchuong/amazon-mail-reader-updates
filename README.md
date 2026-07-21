@@ -1,5 +1,5 @@
 
-# Amazon Mail Reader 0.3.3
+# Amazon Mail Reader 0.3.4
 
 Ứng dụng Windows chỉ đọc để xem tập trung mail Amazon, cảnh báo bảo mật và thống kê payment.
 
