@@ -108,20 +108,37 @@ CURRENCY_SYMBOLS = {
     "¥": "JPY",
 }
 
+CURRENCY_CODES = "USD|EUR|GBP|JPY|CAD|AUD"
+AMOUNT_VALUE = r"\d(?:[\d.,\u00a0 ]*\d)?"
+
+PAYMENT_CURRENCY_PATTERN = re.compile(
+    rf"payment\s+currency\s*[:#-]?\s*(?P<currency>{CURRENCY_CODES})\b",
+    re.I,
+)
+
+PAYMENT_AMOUNT_PATTERN = re.compile(
+    rf"payment\s+amount\s*[:#-]?\s*"
+    rf"(?:(?P<prefix>[$€£¥]|{CURRENCY_CODES})\s*)?"
+    rf"(?P<amount>{AMOUNT_VALUE})"
+    rf"(?:\s*(?P<suffix>{CURRENCY_CODES}))?",
+    re.I,
+)
+
 AMOUNT_PATTERNS = (
-    re.compile(r"(?P<symbol>[$€£¥])\s*(?P<amount>\d[\d,\s]*(?:\.\d{1,2})?)"),
+    re.compile(rf"(?P<symbol>[$€£¥])\s*(?P<amount>{AMOUNT_VALUE})"),
     re.compile(
-        r"(?P<currency>USD|EUR|GBP|JPY|CAD|AUD)\s*(?P<amount>\d[\d,\s]*(?:\.\d{1,2})?)",
+        rf"(?P<currency>{CURRENCY_CODES})\s*(?P<amount>{AMOUNT_VALUE})",
         re.I,
     ),
     re.compile(
-        r"(?P<amount>\d[\d,\s]*(?:\.\d{1,2})?)\s*(?P<currency>USD|EUR|GBP|JPY|CAD|AUD)",
+        rf"(?P<amount>{AMOUNT_VALUE})\s*(?P<currency>{CURRENCY_CODES})",
         re.I,
     ),
 )
 
 PAYMENT_ID_PATTERN = re.compile(
-    r"(payment\s*(id|reference|ref)?|transaction\s*(id|reference))[:\s#-]+([A-Z0-9-]{5,})",
+    r"(?:payment\s*(?:id|reference|ref|number)|payment\s*#|transaction\s*(?:id|reference))"
+    r"\s*[:#-]?\s*(?P<payment_id>[A-Z0-9-]{5,})",
     re.I,
 )
 
@@ -185,30 +202,63 @@ def looks_interesting(from_addr: str, subject: str) -> bool:
     )
 
 
+def _parse_amount(raw: str) -> float | None:
+    value = raw.replace("\u00a0", "").replace(" ", "")
+    if not value:
+        return None
+    if "," in value and "." in value:
+        if value.rfind(",") > value.rfind("."):
+            value = value.replace(".", "").replace(",", ".")
+        else:
+            value = value.replace(",", "")
+    elif "," in value:
+        decimals = len(value) - value.rfind(",") - 1
+        value = value.replace(",", ".") if decimals in (1, 2) else value.replace(",", "")
+    elif value.count(".") > 1:
+        parts = value.split(".")
+        value = "".join(parts[:-1]) + "." + parts[-1]
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _currency_from_token(token: str | None) -> str | None:
+    if not token:
+        return None
+    return CURRENCY_SYMBOLS.get(token, token.upper())
+
+
 def extract_payment(text: str) -> tuple[str | None, float | None, str | None]:
+    currency_match = PAYMENT_CURRENCY_PATTERN.search(text)
+    currency = currency_match.group("currency").upper() if currency_match else None
+
     amount = None
-    currency = None
+    labelled_amount = PAYMENT_AMOUNT_PATTERN.search(text)
+    if labelled_amount:
+        amount = _parse_amount(labelled_amount.group("amount"))
+        currency = currency or _currency_from_token(
+            labelled_amount.group("prefix") or labelled_amount.group("suffix")
+        )
+
+    if amount is None:
+        currency = None
     for pattern in AMOUNT_PATTERNS:
         match = pattern.search(text)
         if not match:
             continue
-        raw_amount = match.group("amount").replace(" ", "").replace(",", "")
-        try:
-            amount = float(raw_amount)
-        except ValueError:
+        amount = _parse_amount(match.group("amount"))
+        if amount is None:
             continue
         symbol = match.groupdict().get("symbol")
         currency = match.groupdict().get("currency")
-        if symbol:
-            currency = CURRENCY_SYMBOLS.get(symbol)
-        if currency:
-            currency = currency.upper()
+        currency = _currency_from_token(symbol or currency)
         break
 
     payment_id = None
     id_match = PAYMENT_ID_PATTERN.search(text)
     if id_match:
-        payment_id = id_match.group(id_match.lastindex or 0)
+        payment_id = id_match.group("payment_id")
     return currency, amount, payment_id
 
 
