@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import tkinter as tk
@@ -81,17 +80,19 @@ class AccountsViewMixin:
 
         action_row = ctk.CTkFrame(right, fg_color="transparent")
         action_row.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        action_row.grid_columnconfigure((0, 1, 2), weight=1)
+        action_row.grid_columnconfigure((0, 1, 2, 3), weight=1)
         self.microsoft_login_button = ctk.CTkButton(action_row, text="Đăng nhập Microsoft", command=self.login_microsoft)
         self.microsoft_login_button.grid(row=0, column=0, sticky="ew", padx=(0, 4), pady=4)
+        self.google_login_button = ctk.CTkButton(action_row, text="Đăng nhập Google", command=self.login_google)
+        self.google_login_button.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
         self.add_button = ctk.CTkButton(action_row, text="Thêm IMAP", width=100, command=self.add_account)
-        self.add_button.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
+        self.add_button.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
         self.update_button = ctk.CTkButton(action_row, text="Cập nhật", width=90, command=self.update_account)
-        self.update_button.grid(row=0, column=2, sticky="ew", padx=(4, 0), pady=4)
+        self.update_button.grid(row=0, column=3, sticky="ew", padx=(4, 0), pady=4)
         self.test_button = ctk.CTkButton(action_row, text="Kiểm tra kết nối", command=self.test_current_account)
-        self.test_button.grid(row=1, column=0, columnspan=2, sticky="ew", padx=(0, 4), pady=4)
+        self.test_button.grid(row=1, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=4)
         ctk.CTkButton(action_row, text="Xóa form", width=90, command=self.clear_account_form).grid(
-            row=1, column=2, sticky="ew", padx=(4, 0), pady=4
+            row=1, column=3, sticky="ew", padx=(4, 0), pady=4
         )
 
         self.account_note = tk.StringVar()
@@ -102,4 +103,3 @@ class AccountsViewMixin:
 
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
