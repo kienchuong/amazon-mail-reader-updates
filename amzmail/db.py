@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import sqlite3
@@ -144,6 +143,37 @@ class AppDatabase:
                  active, auth_type, token_blob, provider_account_id, connection_status)
                 VALUES (?, ?, 'Outlook', '', 0, ?, '', 'inbox', 1, 1,
                         'microsoft_oauth', ?, ?, 'Đã kết nối')
+                """,
+                (name.strip() or profile.get("display_name") or email, email, email, encrypted, provider_id),
+            )
+            return int(cur.lastrowid)
+
+    def add_or_update_google_account(self, profile: dict[str, str], token_json: str, name: str = "") -> int:
+        email = profile["email"].strip().lower()
+        provider_id = profile.get("id", "")
+        with self._lock, self.conn:
+            existing = self.conn.execute(
+                "SELECT id FROM accounts WHERE auth_type='google_oauth' AND (email=? OR provider_account_id=?)",
+                (email, provider_id),
+            ).fetchone()
+            encrypted = self.vault.encrypt(token_json)
+            if existing:
+                self.conn.execute(
+                    """
+                    UPDATE accounts SET name=?, email=?, provider='Gmail', token_blob=?,
+                        provider_account_id=?, connection_status='Đã kết nối', updated_at=CURRENT_TIMESTAMP
+                    WHERE id=?
+                    """,
+                    (name.strip() or profile.get("display_name") or email, email, encrypted, provider_id, existing["id"]),
+                )
+                return int(existing["id"])
+            cur = self.conn.execute(
+                """
+                INSERT INTO accounts
+                (name, email, provider, host, port, username, password_blob, folder, use_ssl,
+                 active, auth_type, token_blob, provider_account_id, connection_status)
+                VALUES (?, ?, 'Gmail', '', 0, ?, '', 'inbox', 1, 1,
+                        'google_oauth', ?, ?, 'Đã kết nối')
                 """,
                 (name.strip() or profile.get("display_name") or email, email, email, encrypted, provider_id),
             )
@@ -303,4 +333,3 @@ class AppDatabase:
     def close(self) -> None:
         with self._lock:
             self.conn.close()
-
