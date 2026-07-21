@@ -52,6 +52,14 @@ class UiStructureTests(unittest.TestCase):
         source = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
         self.assertIn('strftime("%d/%m")', source)
 
+    def test_inbox_uses_seven_day_default_and_shared_refresh(self):
+        inbox = (ROOT / "amzmail" / "views" / "inbox.py").read_text(encoding="utf-8")
+        controller = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn('days_back_var = tk.StringVar(value="7")', inbox)
+        self.assertIn("Số ngày quét/hiển thị", inbox)
+        self.assertIn("def refresh_current_range", controller)
+        self.assertIn("self.db.list_payments(self.display_days())", controller)
+
 
 if __name__ == "__main__":
     unittest.main()
