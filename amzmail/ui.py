@@ -266,7 +266,7 @@ class AmazonMailReaderApp(
             return
         self.db.set_setting("microsoft_client_id", client_id)
         name = self.acc_name.get().strip()
-        self.set_status("Đang mở trình duyệt để đăng nhập Microsoft...")
+        self.set_status("Đang mở Edge InPrivate để đăng nhập Microsoft...")
 
         def worker():
             try:
