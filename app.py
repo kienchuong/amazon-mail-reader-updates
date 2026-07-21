@@ -6,7 +6,7 @@ from amzmail.bootstrap import initialize_storage
 try:
     from amzmail.ui import AmazonMailReaderApp
 except ModuleNotFoundError as exc:
-    if exc.name != "customtkinter":
+    if exc.name not in {"customtkinter", "tksheet"}:
         raise
     AmazonMailReaderApp = None
 
@@ -20,7 +20,7 @@ def main() -> None:
         root.withdraw()
         messagebox.showerror(
             "Thiếu thư viện giao diện",
-            "App cần CustomTkinter. Hãy chạy:\n\npython -m pip install -r requirements.txt\n\nrồi mở lại app.",
+            "App cần CustomTkinter và tksheet. Hãy chạy:\n\npython -m pip install -r requirements.txt\n\nrồi mở lại app.",
             parent=root,
         )
         root.destroy()
@@ -35,4 +35,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
