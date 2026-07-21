@@ -1,0 +1,12 @@
+data/
+dist/
+build/
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite*
+*.log
+.env
+vault.json
+data_location.json
+
