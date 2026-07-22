@@ -59,6 +59,7 @@ class AmazonMailReaderApp(
         if not self.db.get_setting("github_repo").strip():
             self.db.set_setting("github_repo", DEFAULT_UPDATE_REPO)
         self.scan_queue: queue.Queue = queue.Queue()
+        self.scan_running = False
         self.selected_account_id: int | None = None
         self.protocol("WM_DELETE_WINDOW", self.close_app)
 
@@ -109,7 +110,7 @@ class AmazonMailReaderApp(
             self.add_button.configure(state="normal")
             self.test_button.configure(text="Test IMAP")
             self.account_note.set(
-                "Gmail/Yahoo v� email t�n mi?n ri�ng d�ng IMAP read-only. App d�ng BODY.PEEK d? kh�ng d�nh d?u mail d� d?c."
+                "Gmail/Yahoo và email tên miền riêng dùng IMAP read-only. App dùng BODY.PEEK để không đánh dấu mail đã đọc."
             )
 
     def apply_provider_preset(self) -> None:
@@ -347,7 +348,7 @@ class AmazonMailReaderApp(
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
 
-    def start_scan(self) -> None:
+    def _scan_parameters(self) -> tuple[int, int] | None:
         try:
             days = int(self.days_back_var.get())
             max_messages = int(self.max_messages_var.get())
@@ -356,68 +357,100 @@ class AmazonMailReaderApp(
             return
         if days < 1 or max_messages < 1:
             messagebox.showwarning("Sai thông tin", "Số ngày và giới hạn phải lớn hơn 0.")
+            return None
+        return days, max_messages
+
+    def _set_scan_controls(self, running: bool) -> None:
+        self.scan_running = running
+        state = "disabled" if running else "normal"
+        self.scan_all_button.configure(state=state)
+        self.scan_one_button.configure(
+            state=state,
+            text="Đang quét..." if running else "Quét account này",
+        )
+
+    def _scan_one_account(
+        self,
+        account,
+        days: int,
+        max_messages: int,
+        include_general: bool,
+        microsoft_client_id: str,
+        google_client_id: str,
+        google_client_secret: str,
+    ):
+        if account["auth_type"] == "microsoft_oauth":
+            return scan_microsoft_account(
+                account,
+                self.db,
+                microsoft_client_id,
+                days,
+                max_messages,
+                include_general,
+            )
+        if account["auth_type"] == "google_oauth":
+            return scan_google_account(
+                account,
+                self.db,
+                google_client_id,
+                google_client_secret,
+                days,
+                max_messages,
+                include_general,
+            )
+        password = self.db.account_password(account)
+        return scan_account(account, password, days, max_messages, include_general, self.db)
+
+    def _start_account_scan(self, accounts, single_account: bool = False) -> None:
+        if self.scan_running:
+            self.set_status("Một lượt quét đang chạy. Vui lòng chờ hoàn tất.")
             return
-        accounts = self.db.get_accounts(active_only=True)
-        if not accounts:
-            messagebox.showinfo("Chưa có account", "Hãy thêm ít nhất một account ở tab Accounts.")
+        parameters = self._scan_parameters()
+        if parameters is None:
             return
-        self.set_status(f"Đang quét {len(accounts)} account...")
+        days, max_messages = parameters
+        include_general = self.include_general_var.get()
+        microsoft_client_id = self.microsoft_client_id_var.get().strip()
+        google_client_id = self.google_client_id_var.get().strip()
+        google_client_secret = self.google_client_secret_var.get().strip()
+        account_name = accounts[0]["name"] if single_account else ""
+
+        self._set_scan_controls(True)
+        if single_account:
+            self.set_status(f"Đang quét account {account_name}...")
+        else:
+            self.set_status(f"Đang quét {len(accounts)} account...")
 
         def worker():
             for account in accounts:
                 try:
-                    if account["auth_type"] == "microsoft_oauth":
-                        result = scan_microsoft_account(
-                            account,
-                            self.db,
-                            self.microsoft_client_id_var.get().strip(),
-                            days,
-                            max_messages,
-                            self.include_general_var.get(),
-                        )
-                    elif account["auth_type"] == "google_oauth":
-                        result = scan_google_account(
-                            account,
-                            self.db,
-                            self.google_client_id_var.get().strip(),
-                            self.google_client_secret_var.get().strip(),
-                            days,
-                            max_messages,
-                            self.include_general_var.get(),
-                        )
-                    else:
-                        password = self.db.account_password(account)
-                        result = scan_account(account, password, days, max_messages, self.include_general_var.get(), self.db)
+                    result = self._scan_one_account(
+                        account,
+                        days,
+                        max_messages,
+                        include_general,
+                        microsoft_client_id,
+                        google_client_id,
+                        google_client_secret,
+                    )
                 except Exception as exc:
-                    result = type("Result", (), {"account_name": account["name"], "scanned": 0, "saved": 0, "error": str(exc)})
+                    result = type(
+                        "Result",
+                        (),
+                        {"account_name": account["name"], "scanned": 0, "saved": 0, "error": str(exc)},
+                    )
                 self.scan_queue.put(("scan_result", result))
-            self.scan_queue.put(("scan_done", None))
+            self.scan_queue.put(("scan_done", {"single": single_account, "account_name": account_name}))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
 
-    def poll_scan_queue(self) -> None:
-        handled = False
-        while True:
-            try:
-                kind, payload = self.scan_queue.get_nowait()
-            except queue.Empty:
-                break
-            handled = True
-            if kind == "scan_result":
-                if payload.error:
-                    self.set_status(f"{payload.account_name}: lỗi - {payload.error}")
-                else:
-                    self.set_status(f"{payload.account_name}: quét {payload.scanned}, lưu {payload.saved}.")
-            elif kind == "scan_done":
-                self.refresh_inbox()
-                self.refresh_payments()
-                self.set_status("Quét xong.")
-                if self.google_auto_sync_var.get():
-                    self.after(100, self.export_to_google_sheet)
-                if self.mobile_auto_sync_var.get():
-                    self.after(150, self.sync_mobile_dashboard)
-            elif kind == "status":
+    def start_scan(self) -> None:
+        if self.scan_running:
+            self.set_status("Một lượt quét đang chạy. Vui lòng chờ hoàn tất.")
+            return
+        accounts = self.db.get_accounts(active_only=True)
+        if not accounts…537 tokens truncated…            elif kind == "status":
                 self.set_status(payload)
                 self.refresh_accounts()
             elif kind == "error":
@@ -579,7 +612,7 @@ class AmazonMailReaderApp(
         self.payment_tree.fit_columns()
         summary_parts = [f"{currency}: {amount:,.2f}" for currency, amount in sorted(totals.items())]
         if unknown:
-            summary_parts.append(f"{unknown} mail chua t�ch du?c s? ti?n")
+            summary_parts.append(f"{unknown} mail chưa tách được số tiền")
         self.payment_summary_var.set(" | ".join(summary_parts) if summary_parts else "Chưa có payment.")
 
     def export_payments_csv(self) -> None:
@@ -772,7 +805,7 @@ class AmazonMailReaderApp(
             messagebox.showwarning("Thiếu cấu hình", "Hãy nhập Webhook URL và Secret trước.")
             return
         if len(pin) < 4:
-            messagebox.showwarning("PIN qu� ng?n", "PIN Mobile Dashboard c?n �t nh?t 4 k� t?.")
+            messagebox.showwarning("PIN quá ngắn", "PIN Mobile Dashboard cần ít nhất 4 ký tự.")
             return
         self.set_status("Đang đặt PIN Mobile Dashboard...")
 
