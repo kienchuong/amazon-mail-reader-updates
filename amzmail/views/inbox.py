@@ -30,7 +30,10 @@ class InboxViewMixin:
         search.grid(row=0, column=2, sticky="ew", padx=(0, 8))
         search.bind("<Return>", lambda _event: self.refresh_inbox())
         ctk.CTkButton(toolbar, text="Tìm kiếm", width=92, command=self.refresh_inbox).grid(row=0, column=3, padx=4)
-        ctk.CTkButton(toolbar, text="Quét tất cả", width=104, command=self.start_scan).grid(row=0, column=4, padx=(4, 0))
+        self.scan_all_button = ctk.CTkButton(
+            toolbar, text="Quét tất cả", width=104, command=self.start_scan
+        )
+        self.scan_all_button.grid(row=0, column=4, padx=(4, 0))
 
         options = ctk.CTkFrame(parent, fg_color="transparent")
         options.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
