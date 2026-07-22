@@ -55,7 +55,7 @@ def _choose_data_dir(root: Tk, program_dir: Path) -> Path | None:
         if path.drive.rstrip("\\/").lower() == system_drive:
             messagebox.showwarning(
                 "Không chọn ổ C",
-                "H�y ch?n m?t thu m?c ? ? kh�c d? d? li?u kh�ng b? m?t khi c�i l?i Windows.",
+                "Hãy chọn một thư mục ở ổ khác để dữ liệu không bị mất khi cài lại Windows.",
                 parent=root,
             )
             continue
@@ -100,7 +100,7 @@ def _unlock_or_create(root: Tk, data_dir: Path) -> Vault | None:
         first = simpledialog.askstring("Tạo mật khẩu chính", "Mật khẩu chính (ít nhất 8 ký tự):", show="*", parent=root)
         if first is None:
             return None
-        second = simpledialog.askstring("X�c nh?n m?t kh?u", "Nh?p l?i m?t kh?u ch�nh:", show="*", parent=root)
+        second = simpledialog.askstring("Xác nhận mật khẩu", "Nhập lại mật khẩu chính:", show="*", parent=root)
         if second is None:
             return None
         if first != second:
