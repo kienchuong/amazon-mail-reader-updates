@@ -90,7 +90,16 @@ class AccountsViewMixin:
         self.update_button = ctk.CTkButton(action_row, text="Cập nhật", width=90, command=self.update_account)
         self.update_button.grid(row=0, column=3, sticky="ew", padx=(4, 0), pady=4)
         self.test_button = ctk.CTkButton(action_row, text="Kiểm tra kết nối", command=self.test_current_account)
-        self.test_button.grid(row=1, column=0, columnspan=3, sticky="ew", padx=(0, 4), pady=4)
+        self.test_button.grid(row=1, column=0, columnspan=2, sticky="ew", padx=(0, 4), pady=4)
+        self.scan_one_button = ctk.CTkButton(
+            action_row,
+            text="Quét account này",
+            command=self.start_selected_account_scan,
+            fg_color="#168a55",
+            hover_color="#127347",
+            disabled_fg_color="#0f5f3d",
+        )
+        self.scan_one_button.grid(row=1, column=2, sticky="ew", padx=4, pady=4)
         ctk.CTkButton(action_row, text="Xóa form", width=90, command=self.clear_account_form).grid(
             row=1, column=3, sticky="ew", padx=(4, 0), pady=4
         )
