@@ -85,7 +85,10 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn("Mobile Dashboard", settings)
         self.assertIn("def build_mobile_snapshot", sync)
         self.assertIn("quick_snapshot = build_mobile_snapshot(messages, payments, days)", controller)
-        self.assertIn("setInterval(() => loadSnapshot(true), 15000)", (ROOT / "docs" / "mobile" / "index.html").read_text(encoding="utf-8"))
+        mobile = (ROOT / "docs" / "mobile" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("setInterval(() => loadSnapshot(true), 15000)", mobile)
+        self.assertIn("new Intl.Collator", mobile)
+        self.assertIn("const rows = sortedPayments()", mobile)
 
 
 if __name__ == "__main__":
