@@ -25,7 +25,8 @@
 
     function shell() {
       const sync = data.meta && data.meta.synced_at ? new Date(data.meta.synced_at).toLocaleString() : 'No data';
-      root.innerHTML = '<div class="app"><div class="top"><div><div class="brand">Amazon Mail Reader</div><div class="sync">Synced ' + esc(sync) + ' | ' + esc(data.meta.range_days || 7) + ' days</div></div><div class="amazon">amazon</div></div><div id="page"></div></div><nav class="nav"><button id="inbox" class="' + (tab === 'inbox' ? 'active' : '') + '">Inbox</button><button id="payment" class="' + (tab === 'payment' ? 'active' : '') + '">Payment</button></nav><div id="modal" class="modal"></div>';
+      const rangeDays = (data.meta || {}).range_days || 7;
+      root.innerHTML = '<div class="app"><div class="top"><div><div class="brand">Amazon Mail Reader</div><div class="sync">Synced ' + esc(sync) + ' | ' + esc(rangeDays) + ' days</div></div><div class="amazon">amazon</div></div><div id="page"></div></div><nav class="nav"><button id="inbox" class="' + (tab === 'inbox' ? 'active' : '') + '">Inbox</button><button id="payment" class="' + (tab === 'payment' ? 'active' : '') + '">Payment</button></nav><div id="modal" class="modal"></div>';
       document.querySelector('#inbox').onclick = () => { tab = 'inbox'; shell(); };
       document.querySelector('#payment').onclick = () => { tab = 'payment'; shell(); };
       tab === 'inbox' ? inbox() : payments();
