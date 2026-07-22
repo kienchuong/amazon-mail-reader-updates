@@ -367,6 +367,7 @@ class AmazonMailReaderApp(
         self.scan_one_button.configure(
             state=state,
             text="Đang quét..." if running else "Quét account này",
+            fg_color="#0f5f3d" if running else "#168a55",
         )
 
     def _scan_one_account(
