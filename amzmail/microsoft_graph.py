@@ -163,7 +163,7 @@ def interactive_login(client_id: str, timeout_seconds: int = 300) -> MicrosoftLo
         _open_microsoft_login(auth_url)
     except MicrosoftAuthError:
         server.server_close()
-        raise
+        raise MicrosoftAuthError("Không mở được trình duyệt mặc định.")
     deadline = time.monotonic() + timeout_seconds
     try:
         while not callback.event.is_set() and time.monotonic() < deadline:
