@@ -89,18 +89,18 @@ class AmazonMailReaderApp(
             self.microsoft_login_button.configure(state="normal")
             self.google_login_button.configure(state="disabled")
             self.add_button.configure(state="disabled")
-            self.test_button.configure(text="Kiá»ƒm tra Microsoft")
+            self.test_button.configure(text="Kiểm tra Microsoft")
             self.account_note.set(
-                "Báº¥m ÄÄƒng nháº­p Microsoft. TrÃ¬nh duyá»‡t sáº½ má»Ÿ trang chÃ­nh thá»©c cá»§a Microsoft; app khÃ´ng nhÃ¬n tháº¥y hoáº·c lÆ°u máº­t kháº©u email."
+                "Bấm Đăng nhập Microsoft. Trình duyệt sẽ mở trang chính thức của Microsoft; app không nhìn thấy hoặc lưu mật khẩu email."
             )
         elif provider == "Google OAuth":
             self.ssl_check.grid_remove()
             self.microsoft_login_button.configure(state="disabled")
             self.google_login_button.configure(state="normal")
             self.add_button.configure(state="disabled")
-            self.test_button.configure(text="Kiá»ƒm tra Google")
+            self.test_button.configure(text="Kiểm tra Google")
             self.account_note.set(
-                "Báº¥m ÄÄƒng nháº­p Google. TrÃ¬nh duyá»‡t sáº½ má»Ÿ trang chÃ­nh thá»©c cá»§a Google; app khÃ´ng nhÃ¬n tháº¥y hoáº·c lÆ°u máº­t kháº©u Gmail."
+                "Bấm Đăng nhập Google. Trình duyệt sẽ mở trang chính thức của Google; app không nhìn thấy hoặc lưu mật khẩu Gmail."
             )
         else:
             self.ssl_check.grid()
@@ -109,7 +109,7 @@ class AmazonMailReaderApp(
             self.add_button.configure(state="normal")
             self.test_button.configure(text="Test IMAP")
             self.account_note.set(
-                "Gmail/Yahoo vÃ  email tÃªn miá»n riÃªng dÃ¹ng IMAP read-only. App dÃ¹ng BODY.PEEK Ä‘á»ƒ khÃ´ng Ä‘Ã¡nh dáº¥u mail Ä‘Ã£ Ä‘á»c."
+                "Gmail/Yahoo v� email t�n mi?n ri�ng d�ng IMAP read-only. App d�ng BODY.PEEK d? kh�ng d�nh d?u mail d� d?c."
             )
 
     def apply_provider_preset(self) -> None:
@@ -136,12 +136,12 @@ class AmazonMailReaderApp(
             required.append("password")
         missing = [field for field in required if not str(data[field]).strip()]
         if missing:
-            messagebox.showwarning("Thiáº¿u thÃ´ng tin", "Vui lÃ²ng nháº­p Ä‘á»§ thÃ´ng tin account.")
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập đủ thông tin account.")
             return False
         try:
             int(data["port"])
         except ValueError:
-            messagebox.showwarning("Sai port", "IMAP port pháº£i lÃ  sá»‘.")
+            messagebox.showwarning("Sai port", "IMAP port phải là số.")
             return False
         return True
 
@@ -156,8 +156,8 @@ class AmazonMailReaderApp(
                     account["name"],
                     account["email"],
                     account["provider"],
-                    account["connection_status"] or ("ÄÃ£ lÆ°u" if account["auth_type"] == "imap_password" else "ChÆ°a káº¿t ná»‘i"),
-                    "CÃ³" if account["active"] else "KhÃ´ng",
+                    account["connection_status"] or ("Đã lưu" if account["auth_type"] == "imap_password" else "Chưa kết nối"),
+                    "Có" if account["active"] else "Không",
                 ),
             )
         self.accounts_tree.fit_columns()
@@ -204,33 +204,33 @@ class AmazonMailReaderApp(
         self.db.add_imap_account(self.account_form_data())
         self.clear_account_form()
         self.refresh_accounts()
-        self.set_status("ÄÃ£ thÃªm account.")
+        self.set_status("Đã thêm account.")
 
     def update_account(self) -> None:
         if self.selected_account_id is None:
-            messagebox.showinfo("Chá»n account", "Vui lÃ²ng chá»n account cáº§n cáº­p nháº­t.")
+            messagebox.showinfo("Chọn account", "Vui lòng chọn account cần cập nhật.")
             return
         account = self.db.get_account(self.selected_account_id)
         if account and account["auth_type"] in {"microsoft_oauth", "google_oauth"}:
             if not self.acc_name.get().strip():
-                messagebox.showwarning("Thiáº¿u tÃªn", "Vui lÃ²ng nháº­p tÃªn account.")
+                messagebox.showwarning("Thiếu tên", "Vui lòng nhập tên account.")
                 return
             self.db.update_account_name_active(self.selected_account_id, self.acc_name.get(), self.acc_active.get())
             self.refresh_accounts()
-            self.set_status("ÄÃ£ cáº­p nháº­t account OAuth.")
+            self.set_status("Đã cập nhật account OAuth.")
             return
         update_password = bool(self.acc_password.get().strip())
         if not self.validate_account_form(require_password=False):
             return
         self.db.update_imap_account(self.selected_account_id, self.account_form_data(), update_password)
         self.refresh_accounts()
-        self.set_status("ÄÃ£ cáº­p nháº­t account.")
+        self.set_status("Đã cập nhật account.")
 
     def delete_selected_account(self) -> None:
         selection = self.accounts_tree.selection()
         if not selection:
             return
-        if not messagebox.askyesno("XÃ³a account khá»i app", "Chá»‰ xÃ³a account vÃ  dá»¯ liá»‡u cá»¥c bá»™ trong app. Email gá»‘c khÃ´ng bá»‹ áº£nh hÆ°á»Ÿng. Tiáº¿p tá»¥c?"):
+        if not messagebox.askyesno("Xóa account khỏi app", "Chỉ xóa account và dữ liệu cục bộ trong app. Email gốc không bị ảnh hưởng. Tiếp tục?"):
             return
         self.db.delete_account(int(selection[0]))
         self.clear_account_form()
@@ -241,39 +241,39 @@ class AmazonMailReaderApp(
     def test_current_account(self) -> None:
         if self.acc_provider.get() == "Outlook":
             if self.selected_account_id is None:
-                messagebox.showinfo("ChÆ°a cÃ³ account", "HÃ£y báº¥m ÄÄƒng nháº­p Microsoft trÆ°á»›c.")
+                messagebox.showinfo("Chưa có account", "Hãy bấm Đăng nhập Microsoft trước.")
                 return
             account = self.db.get_account(self.selected_account_id)
             client_id = self.microsoft_client_id_var.get().strip()
-            self.set_status("Äang kiá»ƒm tra Microsoft...")
+            self.set_status("Đang kiểm tra Microsoft...")
 
             def microsoft_worker():
                 try:
                     test_microsoft_connection(account, self.db, client_id)
-                    self.scan_queue.put(("status", "Káº¿t ná»‘i Microsoft thÃ nh cÃ´ng."))
+                    self.scan_queue.put(("status", "Kết nối Microsoft thành công."))
                 except Exception as exc:
-                    self.db.set_connection_status(int(account["id"]), "Cáº§n Ä‘Äƒng nháº­p láº¡i")
-                    self.scan_queue.put(("error", f"Káº¿t ná»‘i Microsoft tháº¥t báº¡i: {exc}"))
+                    self.db.set_connection_status(int(account["id"]), "Cần đăng nhập lại")
+                    self.scan_queue.put(("error", f"Kết nối Microsoft thất bại: {exc}"))
 
             threading.Thread(target=microsoft_worker, daemon=True).start()
             self.after(150, self.poll_scan_queue)
             return
         if self.acc_provider.get() == "Google OAuth":
             if self.selected_account_id is None:
-                messagebox.showinfo("ChÆ°a cÃ³ account", "HÃ£y báº¥m ÄÄƒng nháº­p Google trÆ°á»›c.")
+                messagebox.showinfo("Chưa có account", "Hãy bấm Đăng nhập Google trước.")
                 return
             account = self.db.get_account(self.selected_account_id)
             client_id = self.google_client_id_var.get().strip()
             client_secret = self.google_client_secret_var.get().strip()
-            self.set_status("Äang kiá»ƒm tra Google...")
+            self.set_status("Đang kiểm tra Google...")
 
             def google_worker():
                 try:
                     test_google_connection(account, self.db, client_id, client_secret)
-                    self.scan_queue.put(("status", "Káº¿t ná»‘i Google thÃ nh cÃ´ng."))
+                    self.scan_queue.put(("status", "Kết nối Google thành công."))
                 except Exception as exc:
-                    self.db.set_connection_status(int(account["id"]), "Cáº§n Ä‘Äƒng nháº­p Google láº¡i")
-                    self.scan_queue.put(("error", f"Káº¿t ná»‘i Google tháº¥t báº¡i: {exc}"))
+                    self.db.set_connection_status(int(account["id"]), "Cần đăng nhập Google lại")
+                    self.scan_queue.put(("error", f"Kết nối Google thất bại: {exc}"))
 
             threading.Thread(target=google_worker, daemon=True).start()
             self.after(150, self.poll_scan_queue)
@@ -285,14 +285,14 @@ class AmazonMailReaderApp(
         if not password and self.selected_account_id is not None:
             account = self.db.get_account(self.selected_account_id)
             password = self.db.account_password(account)
-        self.set_status("Äang test IMAP...")
+        self.set_status("Đang test IMAP...")
 
         def worker():
             try:
                 test_connection(data, password)
-                self.scan_queue.put(("status", "Káº¿t ná»‘i IMAP thÃ nh cÃ´ng."))
+                self.scan_queue.put(("status", "Kết nối IMAP thành công."))
             except Exception as exc:
-                self.scan_queue.put(("error", f"Káº¿t ná»‘i tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Kết nối thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -301,14 +301,14 @@ class AmazonMailReaderApp(
         client_id = self.microsoft_client_id_var.get().strip()
         if not client_id:
             messagebox.showwarning(
-                "ChÆ°a cÃ³ Microsoft Client ID",
-                "Má»Ÿ tab CÃ i Ä‘áº·t, nháº­p Microsoft Client ID vÃ  báº¥m LÆ°u trÆ°á»›c khi Ä‘Äƒng nháº­p.",
+                "Chưa có Microsoft Client ID",
+                "Mở tab Cài đặt, nhập Microsoft Client ID và bấm Lưu trước khi đăng nhập.",
             )
             self.show_page("settings")
             return
         self.db.set_setting("microsoft_client_id", client_id)
         name = self.acc_name.get().strip()
-        self.set_status("Äang má»Ÿ Edge InPrivate Ä‘á»ƒ Ä‘Äƒng nháº­p Microsoft...")
+        self.set_status("Đang mở Edge InPrivate để đăng nhập Microsoft...")
 
         def worker():
             try:
@@ -316,7 +316,7 @@ class AmazonMailReaderApp(
                 account_id = self.db.add_or_update_microsoft_account(login.profile, login.token_json, name)
                 self.scan_queue.put(("microsoft_login", (account_id, login.profile["email"])))
             except Exception as exc:
-                self.scan_queue.put(("error", f"ÄÄƒng nháº­p Microsoft tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Đăng nhập Microsoft thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -326,15 +326,15 @@ class AmazonMailReaderApp(
         client_secret = self.google_client_secret_var.get().strip()
         if not client_id or not client_secret:
             messagebox.showwarning(
-                "ChÆ°a cÃ³ Google Client ID",
-                "Má»Ÿ tab CÃ i Ä‘áº·t, nháº­p Google Client ID vÃ  lÆ°u trÆ°á»›c khi Ä‘Äƒng nháº­p.",
+                "Chưa có Google Client ID",
+                "Mở tab Cài đặt, nhập Google Client ID và lưu trước khi đăng nhập.",
             )
             self.show_page("settings")
             return
         self.db.set_setting("google_client_id", client_id)
         self.db.set_secret_setting("google_client_secret", client_secret)
         name = self.acc_name.get().strip()
-        self.set_status("Äang má»Ÿ Edge InPrivate Ä‘á»ƒ Ä‘Äƒng nháº­p Google...")
+        self.set_status("Đang mở Edge InPrivate để đăng nhập Google...")
 
         def worker():
             try:
@@ -342,7 +342,7 @@ class AmazonMailReaderApp(
                 account_id = self.db.add_or_update_google_account(login.profile, login.token_json, name)
                 self.scan_queue.put(("google_login", (account_id, login.profile["email"])))
             except Exception as exc:
-                self.scan_queue.put(("error", f"ÄÄƒng nháº­p Google tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Đăng nhập Google thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -352,16 +352,16 @@ class AmazonMailReaderApp(
             days = int(self.days_back_var.get())
             max_messages = int(self.max_messages_var.get())
         except ValueError:
-            messagebox.showwarning("Sai thÃ´ng tin", "Sá»‘ ngÃ y vÃ  giá»›i háº¡n pháº£i lÃ  sá»‘.")
+            messagebox.showwarning("Sai thông tin", "Số ngày và giới hạn phải là số.")
             return
         if days < 1 or max_messages < 1:
-            messagebox.showwarning("Sai thÃ´ng tin", "Sá»‘ ngÃ y vÃ  giá»›i háº¡n pháº£i lá»›n hÆ¡n 0.")
+            messagebox.showwarning("Sai thông tin", "Số ngày và giới hạn phải lớn hơn 0.")
             return
         accounts = self.db.get_accounts(active_only=True)
         if not accounts:
-            messagebox.showinfo("ChÆ°a cÃ³ account", "HÃ£y thÃªm Ã­t nháº¥t má»™t account á»Ÿ tab Accounts.")
+            messagebox.showinfo("Chưa có account", "Hãy thêm ít nhất một account ở tab Accounts.")
             return
-        self.set_status(f"Äang quÃ©t {len(accounts)} account...")
+        self.set_status(f"Đang quét {len(accounts)} account...")
 
         def worker():
             for account in accounts:
@@ -406,13 +406,13 @@ class AmazonMailReaderApp(
             handled = True
             if kind == "scan_result":
                 if payload.error:
-                    self.set_status(f"{payload.account_name}: lá»—i - {payload.error}")
+                    self.set_status(f"{payload.account_name}: lỗi - {payload.error}")
                 else:
-                    self.set_status(f"{payload.account_name}: quÃ©t {payload.scanned}, lÆ°u {payload.saved}.")
+                    self.set_status(f"{payload.account_name}: quét {payload.scanned}, lưu {payload.saved}.")
             elif kind == "scan_done":
                 self.refresh_inbox()
                 self.refresh_payments()
-                self.set_status("QuÃ©t xong.")
+                self.set_status("Quét xong.")
                 if self.google_auto_sync_var.get():
                     self.after(100, self.export_to_google_sheet)
                 if self.mobile_auto_sync_var.get():
@@ -423,7 +423,7 @@ class AmazonMailReaderApp(
             elif kind == "error":
                 self.set_status(payload)
                 self.refresh_accounts()
-                messagebox.showerror("Lá»—i", payload)
+                messagebox.showerror("Lỗi", payload)
             elif kind == "message_body":
                 self.set_message_text(payload)
             elif kind == "microsoft_login":
@@ -433,8 +433,8 @@ class AmazonMailReaderApp(
                 self.accounts_tree.selection_set(str(account_id))
                 self.accounts_tree.focus(str(account_id))
                 self.on_account_selected()
-                self.set_status(f"ÄÃ£ káº¿t ná»‘i Microsoft: {email}")
-                messagebox.showinfo("ÄÄƒng nháº­p thÃ nh cÃ´ng", f"ÄÃ£ káº¿t ná»‘i account {email}.")
+                self.set_status(f"Đã kết nối Microsoft: {email}")
+                messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối account {email}.")
             elif kind == "google_login":
                 account_id, email = payload
                 self.refresh_accounts()
@@ -444,15 +444,15 @@ class AmazonMailReaderApp(
                 self.accounts_tree.selection_set(str(account_id))
                 self.accounts_tree.focus(str(account_id))
                 self.on_account_selected()
-                self.set_status(f"ÄÃ£ káº¿t ná»‘i Google: {email}")
-                messagebox.showinfo("ÄÄƒng nháº­p thÃ nh cÃ´ng", f"ÄÃ£ káº¿t ná»‘i Gmail {email}.")
+                self.set_status(f"Đã kết nối Google: {email}")
+                messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối Gmail {email}.")
             elif kind == "update_available":
                 self.handle_update_available(payload)
             elif kind == "update_downloaded":
                 self.install_downloaded_update(payload)
             elif kind == "status_dialog":
                 self.set_status(payload)
-                messagebox.showinfo("Cáº­p nháº­t", payload)
+                messagebox.showinfo("Cập nhật", payload)
         if handled or threading.active_count() > 1:
             self.after(250, self.poll_scan_queue)
 
@@ -500,11 +500,11 @@ class AmazonMailReaderApp(
             return
         header = (
             f"Account: {message['account_name']} <{message['account_email']}>\n"
-            f"NgÃ y: {message['mail_date'] or ''}\n"
-            f"NgÆ°á»i gá»­i: {message['from_addr'] or ''}\n"
-            f"TiÃªu Ä‘á»: {message['subject'] or ''}\n"
-            f"Loáº¡i: {message['category']} | Má»©c: {message['priority']} | Sender chÃ­nh thá»©c: {'CÃ³' if message['trusted_sender'] else 'ChÆ°a cháº¯c'}\n\n"
-            f"TÃ³m táº¯t:\n{message['snippet'] or ''}\n\nÄang táº£i ná»™i dung mail..."
+            f"Ngày: {message['mail_date'] or ''}\n"
+            f"Người gửi: {message['from_addr'] or ''}\n"
+            f"Tiêu đề: {message['subject'] or ''}\n"
+            f"Loại: {message['category']} | Mức: {message['priority']} | Sender chính thức: {'Có' if message['trusted_sender'] else 'Chưa chắc'}\n\n"
+            f"Tóm tắt:\n{message['snippet'] or ''}\n\nĐang tải nội dung mail..."
         )
         self.set_message_text(header)
 
@@ -526,10 +526,10 @@ class AmazonMailReaderApp(
                 else:
                     password = self.db.account_password(account)
                     body = fetch_message_body(account, password, message["uid"])
-                text = header.replace("Äang táº£i ná»™i dung mail...", "Ná»™i dung:") + "\n\n" + (body or "[KhÃ´ng cÃ³ ná»™i dung text]")
+                text = header.replace("Đang tải nội dung mail...", "Nội dung:") + "\n\n" + (body or "[Không có nội dung text]")
                 self.scan_queue.put(("message_body", text))
             except Exception as exc:
-                self.scan_queue.put(("message_body", header.replace("Äang táº£i ná»™i dung mail...", f"KhÃ´ng táº£i Ä‘Æ°á»£c ná»™i dung: {exc}")))
+                self.scan_queue.put(("message_body", header.replace("Đang tải nội dung mail...", f"Không tải được nội dung: {exc}")))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_message_queue)
@@ -579,17 +579,17 @@ class AmazonMailReaderApp(
         self.payment_tree.fit_columns()
         summary_parts = [f"{currency}: {amount:,.2f}" for currency, amount in sorted(totals.items())]
         if unknown:
-            summary_parts.append(f"{unknown} mail chÆ°a tÃ¡ch Ä‘Æ°á»£c sá»‘ tiá»n")
-        self.payment_summary_var.set(" | ".join(summary_parts) if summary_parts else "ChÆ°a cÃ³ payment.")
+            summary_parts.append(f"{unknown} mail chua t�ch du?c s? ti?n")
+        self.payment_summary_var.set(" | ".join(summary_parts) if summary_parts else "Chưa có payment.")
 
     def export_payments_csv(self) -> None:
         payments = self.db.list_payments(self.display_days())
         if not payments:
-            messagebox.showinfo("ChÆ°a cÃ³ payment", "ChÆ°a cÃ³ dá»¯ liá»‡u payment Ä‘á»ƒ xuáº¥t.")
+            messagebox.showinfo("Chưa có payment", "Chưa có dữ liệu payment để xuất.")
             return
         default = BASE_DIR / "payments_export.csv"
         path = filedialog.asksaveasfilename(
-            title="LÆ°u CSV",
+            title="Lưu CSV",
             defaultextension=".csv",
             initialfile=default.name,
             initialdir=str(BASE_DIR),
@@ -598,7 +598,7 @@ class AmazonMailReaderApp(
         if not path:
             return
         export_csv(payments, Path(path))
-        self.set_status(f"ÄÃ£ xuáº¥t CSV: {path}")
+        self.set_status(f"Đã xuất CSV: {path}")
 
     def save_sheet_settings(self) -> None:
         self.db.set_setting("microsoft_client_id", self.microsoft_client_id_var.get().strip())
@@ -611,26 +611,26 @@ class AmazonMailReaderApp(
         self.db.set_setting("supabase_mobile_dashboard_url", self.mobile_dashboard_url_var.get().strip())
         self.db.set_secret_setting("supabase_mobile_sync_secret", self.mobile_sync_secret_var.get().strip())
         self.db.set_setting("mobile_auto_sync", "1" if self.mobile_auto_sync_var.get() else "0")
-        self.set_status("ÄÃ£ lÆ°u cáº¥u hÃ¬nh Microsoft vÃ  Google Sheet.")
+        self.set_status("Đã lưu cấu hình Microsoft và Google Sheet.")
 
     def save_google_client_settings(self) -> None:
         client_id = self.google_client_id_var.get().strip()
         if not client_id:
-            messagebox.showwarning("Thiáº¿u Google Client ID", "HÃ£y nháº­p Google Client ID trÆ°á»›c khi lÆ°u.")
+            messagebox.showwarning("Thiếu Google Client ID", "Hãy nhập Google Client ID trước khi lưu.")
             return
         self.db.set_setting("google_client_id", client_id)
         self.db.set_secret_setting("google_client_secret", self.google_client_secret_var.get().strip())
-        self.set_status("ÄÃ£ lÆ°u Google Client ID.")
+        self.set_status("Đã lưu Google Client ID.")
 
     def save_app_settings(self) -> None:
         try:
             repo = normalize_repo(self.github_repo_var.get())
         except UpdateError as exc:
-            messagebox.showwarning("Sai Ä‘á»‹a chá»‰ GitHub", str(exc))
+            messagebox.showwarning("Sai địa chỉ GitHub", str(exc))
             return
         self.db.set_setting("github_repo", repo)
         self.github_repo_var.set(repo)
-        self.set_status("ÄÃ£ lÆ°u cáº¥u hÃ¬nh cáº­p nháº­t.")
+        self.set_status("Đã lưu cấu hình cập nhật.")
 
     def check_updates_silently(self) -> None:
         repo = self.db.get_setting("github_repo").strip()
@@ -642,12 +642,12 @@ class AmazonMailReaderApp(
         self.save_app_settings()
         repo = self.github_repo_var.get().strip()
         if not repo:
-            messagebox.showinfo("ChÆ°a cáº¥u hÃ¬nh", "ChÆ°a cáº¥u hÃ¬nh nguá»“n cáº­p nháº­t GitHub.")
+            messagebox.showinfo("Chưa cấu hình", "Chưa cấu hình nguồn cập nhật GitHub.")
             return
         self._start_update_check(repo, interactive=True)
 
     def _start_update_check(self, repo: str, interactive: bool) -> None:
-        self.set_status("Äang kiá»ƒm tra cáº­p nháº­t...")
+        self.set_status("Đang kiểm tra cập nhật...")
 
         def worker():
             try:
@@ -655,33 +655,33 @@ class AmazonMailReaderApp(
                 if info:
                     self.scan_queue.put(("update_available", info))
                 elif interactive:
-                    self.scan_queue.put(("status_dialog", "Báº¡n Ä‘ang dÃ¹ng phiÃªn báº£n má»›i nháº¥t."))
+                    self.scan_queue.put(("status_dialog", "Bạn đang dùng phiên bản mới nhất."))
                 else:
-                    self.scan_queue.put(("status", "ÄÃ£ kiá»ƒm tra cáº­p nháº­t."))
+                    self.scan_queue.put(("status", "Đã kiểm tra cập nhật."))
             except Exception as exc:
                 if interactive:
-                    self.scan_queue.put(("error", f"Kiá»ƒm tra cáº­p nháº­t tháº¥t báº¡i: {exc}"))
+                    self.scan_queue.put(("error", f"Kiểm tra cập nhật thất bại: {exc}"))
                 else:
-                    self.scan_queue.put(("status", f"KhÃ´ng kiá»ƒm tra Ä‘Æ°á»£c cáº­p nháº­t: {exc}"))
+                    self.scan_queue.put(("status", f"Không kiểm tra được cập nhật: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
 
     def handle_update_available(self, info) -> None:
         if not messagebox.askyesno(
-            "CÃ³ báº£n cáº­p nháº­t",
-            f"CÃ³ phiÃªn báº£n {info.version}. Táº£i vÃ  cÃ i Ä‘áº·t ngay?\n\nDá»¯ liá»‡u account náº±m á»Ÿ {self.data_dir} vÃ  sáº½ Ä‘Æ°á»£c giá»¯ nguyÃªn.",
+            "Có bản cập nhật",
+            f"Có phiên bản {info.version}. Tải và cài đặt ngay?\n\nDữ liệu account nằm ở {self.data_dir} và sẽ được giữ nguyên.",
         ):
-            self.set_status(f"ÄÃ£ bá» qua phiÃªn báº£n {info.version}.")
+            self.set_status(f"Đã bỏ qua phiên bản {info.version}.")
             return
-        self.set_status(f"Äang táº£i phiÃªn báº£n {info.version}...")
+        self.set_status(f"Đang tải phiên bản {info.version}...")
 
         def worker():
             try:
                 package = download_update(info, self.data_dir)
                 self.scan_queue.put(("update_downloaded", package))
             except Exception as exc:
-                self.scan_queue.put(("error", f"Táº£i cáº­p nháº­t tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Tải cập nhật thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -690,9 +690,9 @@ class AmazonMailReaderApp(
         try:
             launch_update(package, BASE_DIR, "run_app.bat", os.getpid())
         except Exception as exc:
-            messagebox.showerror("KhÃ´ng cÃ i Ä‘Æ°á»£c cáº­p nháº­t", str(exc))
+            messagebox.showerror("Không cài được cập nhật", str(exc))
             return
-        self.set_status("ÄÃ£ táº£i xong. App sáº½ Ä‘Ã³ng vÃ  má»Ÿ láº¡i sau khi cáº­p nháº­t.")
+        self.set_status("Đã tải xong. App sẽ đóng và mở lại sau khi cập nhật.")
         self.after(500, self.close_app)
 
     def close_app(self) -> None:
@@ -706,20 +706,20 @@ class AmazonMailReaderApp(
         url = self.webhook_url_var.get().strip()
         secret = self.webhook_secret_var.get().strip()
         if not url or not secret:
-            messagebox.showwarning("Thiáº¿u cáº¥u hÃ¬nh", "Vui lÃ²ng nháº­p Webhook URL vÃ  Secret.")
+            messagebox.showwarning("Thiếu cấu hình", "Vui lòng nhập Webhook URL và Secret.")
             return
         payments = self.db.list_payments(self.display_days())
         if not payments:
-            messagebox.showinfo("ChÆ°a cÃ³ payment", "ChÆ°a cÃ³ dá»¯ liá»‡u payment Ä‘á»ƒ xuáº¥t.")
+            messagebox.showinfo("Chưa có payment", "Chưa có dữ liệu payment để xuất.")
             return
-        self.set_status("Äang xuáº¥t Google Sheet...")
+        self.set_status("Đang xuất Google Sheet...")
 
         def worker():
             try:
                 status, body = post_to_google_sheet(url, secret, payments)
-                self.scan_queue.put(("status", f"Google Sheet tráº£ vá» HTTP {status}: {body[:160]}"))
+                self.scan_queue.put(("status", f"Google Sheet trả về HTTP {status}: {body[:160]}"))
             except Exception as exc:
-                self.scan_queue.put(("error", f"Xuáº¥t Google Sheet tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Xuất Google Sheet thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -727,7 +727,7 @@ class AmazonMailReaderApp(
     def _mobile_body(self, message) -> str:
         account = self.db.get_account(int(message["account_id"]))
         if not account:
-            raise RuntimeError("KhÃ´ng tÃ¬m tháº¥y account cá»§a mail nÃ y.")
+            raise RuntimeError("Không tìm thấy account của mail này.")
         if account["auth_type"] == "microsoft_oauth":
             return fetch_microsoft_body(account, self.db, self.microsoft_client_id_var.get().strip(), message["uid"])
         if account["auth_type"] == "google_oauth":
@@ -745,20 +745,20 @@ class AmazonMailReaderApp(
         url = self.mobile_function_url_var.get().strip()
         secret = self.mobile_sync_secret_var.get().strip()
         if not url or not secret:
-            self.set_status("ChÆ°a Ä‘á»“ng bá»™ Mobile Dashboard: thiáº¿u Webhook URL hoáº·c Secret.")
+            self.set_status("Chưa đồng bộ Mobile Dashboard: thiếu Webhook URL hoặc Secret.")
             return
         days = self.display_days()
         messages = self.db.list_messages(days_back=days)
         payments = self.db.list_payments(days)
-        self.set_status("Äang Ä‘á»“ng bá»™ Mobile Dashboard...")
+        self.set_status("Đang đồng bộ Mobile Dashboard...")
 
         def worker():
             try:
                 snapshot = build_mobile_snapshot(messages, payments, days, self._mobile_body)
                 status, body = post_mobile_snapshot(url, secret, snapshot)
-                self.scan_queue.put(("status", f"Mobile Dashboard tráº£ vá» HTTP {status}: {body[:120]}"))
+                self.scan_queue.put(("status", f"Mobile Dashboard trả về HTTP {status}: {body[:120]}"))
             except Exception as exc:
-                self.scan_queue.put(("error", f"Äá»“ng bá»™ Mobile Dashboard tháº¥t báº¡i: {exc}"))
+                self.scan_queue.put(("error", f"Đồng bộ Mobile Dashboard thất bại: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -769,40 +769,40 @@ class AmazonMailReaderApp(
         secret = self.webhook_secret_var.get().strip()
         pin = self.mobile_pin_var.get().strip()
         if not url or not secret:
-            messagebox.showwarning("Thiáº¿u cáº¥u hÃ¬nh", "HÃ£y nháº­p Webhook URL vÃ  Secret trÆ°á»›c.")
+            messagebox.showwarning("Thiếu cấu hình", "Hãy nhập Webhook URL và Secret trước.")
             return
         if len(pin) < 4:
-            messagebox.showwarning("PIN quÃ¡ ngáº¯n", "PIN Mobile Dashboard cáº§n Ã­t nháº¥t 4 kÃ½ tá»±.")
+            messagebox.showwarning("PIN qu� ng?n", "PIN Mobile Dashboard c?n �t nh?t 4 k� t?.")
             return
-        self.set_status("Äang Ä‘áº·t PIN Mobile Dashboard...")
+        self.set_status("Đang đặt PIN Mobile Dashboard...")
 
         def worker():
             try:
                 status, body = post_mobile_action(url, secret, "mobile_set_pin", pin=pin)
-                self.scan_queue.put(("status", f"ÄÃ£ Ä‘áº·t PIN Mobile Dashboard (HTTP {status}). {body[:120]}"))
+                self.scan_queue.put(("status", f"Đã đặt PIN Mobile Dashboard (HTTP {status}). {body[:120]}"))
             except Exception as exc:
-                self.scan_queue.put(("error", f"KhÃ´ng Ä‘áº·t Ä‘Æ°á»£c PIN Mobile Dashboard: {exc}"))
+                self.scan_queue.put(("error", f"Không đặt được PIN Mobile Dashboard: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
 
     def revoke_mobile_devices(self) -> None:
-        if not messagebox.askyesno("Thu há»“i thiáº¿t bá»‹", "Táº¥t cáº£ Ä‘iá»‡n thoáº¡i vÃ  Mac Ä‘ang má»Ÿ dashboard sáº½ pháº£i nháº­p PIN láº¡i. Tiáº¿p tá»¥c?"):
+        if not messagebox.askyesno("Thu hồi thiết bị", "Tất cả điện thoại và Mac đang mở dashboard sẽ phải nhập PIN lại. Tiếp tục?"):
             return
         self.save_sheet_settings()
         url = self.webhook_url_var.get().strip()
         secret = self.webhook_secret_var.get().strip()
         if not url or not secret:
-            messagebox.showwarning("Thiáº¿u cáº¥u hÃ¬nh", "HÃ£y nháº­p Webhook URL vÃ  Secret trÆ°á»›c.")
+            messagebox.showwarning("Thiếu cấu hình", "Hãy nhập Webhook URL và Secret trước.")
             return
-        self.set_status("Äang thu há»“i thiáº¿t bá»‹ Mobile Dashboard...")
+        self.set_status("Đang thu hồi thiết bị Mobile Dashboard...")
 
         def worker():
             try:
                 status, body = post_mobile_action(url, secret, "mobile_revoke_devices")
-                self.scan_queue.put(("status", f"ÄÃ£ thu há»“i thiáº¿t bá»‹ Mobile Dashboard (HTTP {status}). {body[:120]}"))
+                self.scan_queue.put(("status", f"Đã thu hồi thiết bị Mobile Dashboard (HTTP {status}). {body[:120]}"))
             except Exception as exc:
-                self.scan_queue.put(("error", f"KhÃ´ng thu há»“i Ä‘Æ°á»£c thiáº¿t bá»‹: {exc}"))
+                self.scan_queue.put(("error", f"Không thu hồi được thiết bị: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
         self.after(150, self.poll_scan_queue)
@@ -810,7 +810,7 @@ class AmazonMailReaderApp(
     def open_mobile_dashboard(self) -> None:
         url = self.mobile_dashboard_url_var.get().strip()
         if not url:
-            messagebox.showwarning("Thiáº¿u Webhook URL", "HÃ£y nháº­p Webhook URL trÆ°á»›c.")
+            messagebox.showwarning("Thiếu Webhook URL", "Hãy nhập Webhook URL trước.")
             return
         webbrowser.open(url)
 
