@@ -97,7 +97,6 @@ class AccountsViewMixin:
             command=self.start_selected_account_scan,
             fg_color="#168a55",
             hover_color="#127347",
-            disabled_fg_color="#0f5f3d",
         )
         self.scan_one_button.grid(row=1, column=2, sticky="ew", padx=4, pady=4)
         ctk.CTkButton(action_row, text="Xóa form", width=90, command=self.clear_account_form).grid(
