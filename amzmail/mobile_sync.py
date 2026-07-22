@@ -5,6 +5,8 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Callable
 
+from .payment_sort import sort_payments
+
 
 MAX_BODY_CHARACTERS = 45000
 
@@ -64,7 +66,7 @@ def mobile_payment_rows(payments) -> list[dict]:
             "amount": _value(row, "amount", ""),
             "payment_id": str(_value(row, "payment_id")),
         }
-        for row in payments
+        for row in sort_payments(payments)
     ]
 
 
