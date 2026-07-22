@@ -450,7 +450,52 @@ class AmazonMailReaderApp(
             self.set_status("Một lượt quét đang chạy. Vui lòng chờ hoàn tất.")
             return
         accounts = self.db.get_accounts(active_only=True)
-        if not accounts…537 tokens truncated…            elif kind == "status":
+        if not accounts:
+            messagebox.showinfo("Chưa có account", "Hãy thêm ít nhất một account ở tab Accounts.")
+            return
+        self._start_account_scan(accounts)
+
+    def start_selected_account_scan(self) -> None:
+        if self.scan_running:
+            self.set_status("Một lượt quét đang chạy. Vui lòng chờ hoàn tất.")
+            return
+        if self.selected_account_id is None:
+            messagebox.showinfo("Chọn account", "Vui lòng chọn account cần quét trong danh sách.")
+            return
+        account = self.db.get_account(self.selected_account_id)
+        if not account:
+            messagebox.showerror("Không tìm thấy account", "Account đã chọn không còn trong dữ liệu.")
+            self.refresh_accounts()
+            return
+        self._start_account_scan([account], single_account=True)
+
+    def poll_scan_queue(self) -> None:
+        handled = False
+        while True:
+            try:
+                kind, payload = self.scan_queue.get_nowait()
+            except queue.Empty:
+                break
+            handled = True
+            if kind == "scan_result":
+                if payload.error:
+                    self.set_status(f"{payload.account_name}: lỗi - {payload.error}")
+                else:
+                    self.set_status(f"{payload.account_name}: quét {payload.scanned}, lưu {payload.saved}.")
+            elif kind == "scan_done":
+                self._set_scan_controls(False)
+                self.refresh_inbox()
+                self.refresh_payments()
+                self.refresh_accounts()
+                if payload and payload.get("single"):
+                    self.set_status(f"Đã quét xong account {payload['account_name']}.")
+                else:
+                    self.set_status("Quét xong.")
+                if self.google_auto_sync_var.get():
+                    self.after(100, self.export_to_google_sheet)
+                if self.mobile_auto_sync_var.get():
+                    self.after(150, self.sync_mobile_dashboard)
+            elif kind == "status":
                 self.set_status(payload)
                 self.refresh_accounts()
             elif kind == "error":
