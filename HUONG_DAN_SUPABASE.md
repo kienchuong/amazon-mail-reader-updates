@@ -13,7 +13,7 @@ Mobile Dashboard nay khong dung Google Sheet hoac Google Apps Script.
 1. Trong Supabase, mo `Edge Functions` -> `Create a new function`.
 2. Dat ten: `mobile-dashboard`.
 3. Mo file `supabase/functions/mobile-dashboard/index.ts` trong thu muc app, copy toan bo vao editor.
-4. Tat yeu cau JWT cho function nay (hoac deploy bang Supabase CLI voi file `supabase/config.toml` da kem theo), roi deploy. Function tu kiem tra link token va Sync Secret rieng, khong dung tai khoan Supabase tren dien thoai.
+4. Tat yeu cau JWT cho function nay, roi deploy. Function chi la API JSON; giao dien mobile nam tren GitHub Pages nen khong bi Supabase doi HTML thanh text.
 
 ## 3. Tao ba secret
 
@@ -31,12 +31,17 @@ Trong `Cai dat` -> `Mobile Dashboard`:
 - `Supabase Function URL`:
   `https://PROJECT_REF.supabase.co/functions/v1/mobile-dashboard`
 - `Dashboard URL`:
-  `https://PROJECT_REF.supabase.co/functions/v1/mobile-dashboard?t=AMR_DASHBOARD_TOKEN`
+  `https://kienchuong.github.io/amazon-mail-reader-updates/mobile/#api=https://PROJECT_REF.supabase.co/functions/v1/mobile-dashboard&t=AMR_DASHBOARD_TOKEN`
 - `Sync Secret`: gia tri `AMR_SYNC_SECRET`.
 
 `PROJECT_REF` nam trong URL project Supabase hoac `Settings` -> `General`.
 
 Bam `Luu cau hinh`, sau do bam `Dong bo ngay`. Dien thoai chi can mo `Dashboard URL` va them shortcut vao man hinh chinh.
+
+## 5. Bat GitHub Pages mot lan
+
+Trong repo `amazon-mail-reader-updates`: `Settings` -> `Pages` -> Source chon `Deploy from a branch` -> branch `main` va folder `/docs` -> `Save`.
+Sau vai phut, dia chi dashboard o tren se hoat dong.
 
 ## Luu y bao mat
 
