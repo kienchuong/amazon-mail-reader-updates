@@ -1,0 +1,2 @@
+[functions.mobile-dashboard]
+verify_jwt = false
