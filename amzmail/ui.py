@@ -60,6 +60,7 @@ class AmazonMailReaderApp(
             self.db.set_setting("github_repo", DEFAULT_UPDATE_REPO)
         self.scan_queue: queue.Queue = queue.Queue()
         self.scan_running = False
+        self.mobile_sync_generation = 0
         self.selected_account_id: int | None = None
         self.protocol("WM_DELETE_WINDOW", self.close_app)
 
@@ -829,11 +830,23 @@ class AmazonMailReaderApp(
         days = self.display_days()
         messages = self.db.list_messages(days_back=days)
         payments = self.db.list_payments(days)
+        self.mobile_sync_generation += 1
+        generation = self.mobile_sync_generation
         self.set_status("Đang đồng bộ Mobile Dashboard...")
 
         def worker():
             try:
+                quick_snapshot = build_mobile_snapshot(messages, payments, days)
+                status, body = post_mobile_snapshot(url, secret, quick_snapshot)
+                if generation != self.mobile_sync_generation:
+                    return
+                self.scan_queue.put(("status", "Mobile Dashboard đã có danh sách mới; đang tải nội dung mail..."))
+                if not messages:
+                    self.scan_queue.put(("status", f"Mobile Dashboard trả về HTTP {status}: {body[:120]}"))
+                    return
                 snapshot = build_mobile_snapshot(messages, payments, days, self._mobile_body)
+                if generation != self.mobile_sync_generation:
+                    return
                 status, body = post_mobile_snapshot(url, secret, snapshot)
                 self.scan_queue.put(("status", f"Mobile Dashboard trả về HTTP {status}: {body[:120]}"))
             except Exception as exc:
