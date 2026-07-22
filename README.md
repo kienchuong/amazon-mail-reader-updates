@@ -1,69 +1,69 @@
 # Amazon Mail Reader 0.5.0
 
-Ứng dụng Windows chỉ đọc để xem tập trung mail Amazon, cảnh báo bảo mật và thống kê payment.
+á»¨ng dá»¥ng Windows chá»‰ Ä‘á»c Ä‘á»ƒ xem táº­p trung mail Amazon, cáº£nh bÃ¡o báº£o máº­t vÃ  thá»‘ng kÃª payment.
 
-## An toàn
+## An toÃ n
 
-- Outlook/Hotmail đăng nhập trên trang chính thức của Microsoft bằng OAuth 2.0 + PKCE.
-- Chỉ xin quyền Microsoft Graph `Mail.Read` và `User.Read`.
-- App chỉ gọi các API `GET`; không gửi, xóa, di chuyển, sửa hoặc đánh dấu mail đã đọc.
-- IMAP dùng `SELECT readonly=True` và `BODY.PEEK`.
-- Token Microsoft, App Password và Google Sheet Secret được mã hóa bằng mật khẩu chính.
-- Mật khẩu email Microsoft không đi qua ứng dụng.
+- Outlook/Hotmail Ä‘Äƒng nháº­p trÃªn trang chÃ­nh thá»©c cá»§a Microsoft báº±ng OAuth 2.0 + PKCE.
+- Chá»‰ xin quyá»n Microsoft Graph `Mail.Read` vÃ  `User.Read`.
+- App chá»‰ gá»i cÃ¡c API `GET`; khÃ´ng gá»­i, xÃ³a, di chuyá»ƒn, sá»­a hoáº·c Ä‘Ã¡nh dáº¥u mail Ä‘Ã£ Ä‘á»c.
+- IMAP dÃ¹ng `SELECT readonly=True` vÃ  `BODY.PEEK`.
+- Token Microsoft, App Password vÃ  Google Sheet Secret Ä‘Æ°á»£c mÃ£ hÃ³a báº±ng máº­t kháº©u chÃ­nh.
+- Máº­t kháº©u email Microsoft khÃ´ng Ä‘i qua á»©ng dá»¥ng.
 
-## Lần chạy đầu
+## Láº§n cháº¡y Ä‘áº§u
 
-1. Mở `run_app.bat`.
-2. Chọn thư mục dữ liệu ở ổ khác ổ C, ví dụ `D:\AmazonMailReaderData`.
-3. Tạo mật khẩu chính ít nhất 8 ký tự và nhớ kỹ mật khẩu này.
-4. Nếu cài lại Windows, mở app, chọn lại đúng thư mục dữ liệu cũ và nhập mật khẩu chính.
+1. Má»Ÿ `run_app.bat`.
+2. Chá»n thÆ° má»¥c dá»¯ liá»‡u á»Ÿ á»• khÃ¡c á»• C, vÃ­ dá»¥ `D:\AmazonMailReaderData`.
+3. Táº¡o máº­t kháº©u chÃ­nh Ã­t nháº¥t 8 kÃ½ tá»± vÃ  nhá»› ká»¹ máº­t kháº©u nÃ y.
+4. Náº¿u cÃ i láº¡i Windows, má»Ÿ app, chá»n láº¡i Ä‘Ãºng thÆ° má»¥c dá»¯ liá»‡u cÅ© vÃ  nháº­p máº­t kháº©u chÃ­nh.
 
-Không có cách khôi phục nếu quên mật khẩu chính. Hãy sao lưu toàn bộ thư mục dữ liệu sang nơi an toàn.
+KhÃ´ng cÃ³ cÃ¡ch khÃ´i phá»¥c náº¿u quÃªn máº­t kháº©u chÃ­nh. HÃ£y sao lÆ°u toÃ n bá»™ thÆ° má»¥c dá»¯ liá»‡u sang nÆ¡i an toÃ n.
 
-## Đăng nhập Outlook/Hotmail
+## ÄÄƒng nháº­p Outlook/Hotmail
 
-1. Làm một lần theo file `HUONG_DAN_MICROSOFT.md` để lấy Microsoft Client ID.
-2. Mở mục `Cài đặt`, nhập Client ID rồi bấm `Lưu cấu hình`.
-3. Mở mục `Accounts`, chọn `Outlook` và bấm `Đăng nhập Microsoft`.
-4. Trình duyệt mở trang Microsoft. Chọn account và đồng ý quyền đọc mail.
-5. Lặp lại bước 3-4 cho từng Outlook/Hotmail.
+1. LÃ m má»™t láº§n theo file `HUONG_DAN_MICROSOFT.md` Ä‘á»ƒ láº¥y Microsoft Client ID.
+2. Má»Ÿ má»¥c `CÃ i Ä‘áº·t`, nháº­p Client ID rá»“i báº¥m `LÆ°u cáº¥u hÃ¬nh`.
+3. Má»Ÿ má»¥c `Accounts`, chá»n `Outlook` vÃ  báº¥m `ÄÄƒng nháº­p Microsoft`.
+4. TrÃ¬nh duyá»‡t má»Ÿ trang Microsoft. Chá»n account vÃ  Ä‘á»“ng Ã½ quyá»n Ä‘á»c mail.
+5. Láº·p láº¡i bÆ°á»›c 3-4 cho tá»«ng Outlook/Hotmail.
 
-Token được lưu trong kho mã hóa và tự làm mới. Thông thường không phải đăng nhập lại sau khi đóng app, cập nhật app hoặc sang tháng mới. Microsoft có thể yêu cầu đăng nhập lại nếu quyền bị thu hồi hoặc thay đổi bảo mật account.
+Token Ä‘Æ°á»£c lÆ°u trong kho mÃ£ hÃ³a vÃ  tá»± lÃ m má»›i. ThÃ´ng thÆ°á»ng khÃ´ng pháº£i Ä‘Äƒng nháº­p láº¡i sau khi Ä‘Ã³ng app, cáº­p nháº­t app hoáº·c sang thÃ¡ng má»›i. Microsoft cÃ³ thá»ƒ yÃªu cáº§u Ä‘Äƒng nháº­p láº¡i náº¿u quyá»n bá»‹ thu há»“i hoáº·c thay Ä‘á»•i báº£o máº­t account.
 
-## Gmail, Yahoo và email tên miền
+## Gmail, Yahoo vÃ  email tÃªn miá»n
 
-Phiên bản này chưa có OAuth cho Gmail/Yahoo. Các loại này vẫn dùng IMAP + App Password. Outlook không còn dùng password IMAP.
+PhiÃªn báº£n nÃ y chÆ°a cÃ³ OAuth cho Gmail/Yahoo. CÃ¡c loáº¡i nÃ y váº«n dÃ¹ng IMAP + App Password. Outlook khÃ´ng cÃ²n dÃ¹ng password IMAP.
 
-## Đọc và thống kê
+## Äá»c vÃ  thá»‘ng kÃª
 
-- Mục `Inbox`: quét, tìm kiếm và lọc Payment, Reject, Amazon Account, Security.
-- Nội dung đầy đủ chỉ được tải khi cần và không lưu lâu dài trong database.
-- Mục `Payment`: tổng hợp riêng theo từng loại tiền, xuất CSV hoặc Google Sheet.
-- Google Sheet tự đồng bộ sau khi quét khi tùy chọn `Tự đồng bộ sau khi quét` được bật.
-- Google Sheet dùng Apps Script trong file `google_sheets_webhook.gs`.
-- Mobile Dashboard dùng cùng Apps Script, đồng bộ snapshot sau khi quét và không đăng nhập email trên điện thoại. Xem `HUONG_DAN_MOBILE.md`.
+- Má»¥c `Inbox`: quÃ©t, tÃ¬m kiáº¿m vÃ  lá»c Payment, Reject, Amazon Account, Security.
+- Ná»™i dung Ä‘áº§y Ä‘á»§ chá»‰ Ä‘Æ°á»£c táº£i khi cáº§n vÃ  khÃ´ng lÆ°u lÃ¢u dÃ i trong database.
+- Má»¥c `Payment`: tá»•ng há»£p riÃªng theo tá»«ng loáº¡i tiá»n, xuáº¥t CSV hoáº·c Google Sheet.
+- Google Sheet tá»± Ä‘á»“ng bá»™ sau khi quÃ©t khi tÃ¹y chá»n `Tá»± Ä‘á»“ng bá»™ sau khi quÃ©t` Ä‘Æ°á»£c báº­t.
+- Google Sheet dÃ¹ng Apps Script trong file `google_sheets_webhook.gs`.
+- Mobile Dashboard dÃ¹ng Supabase, Ä‘á»“ng bá»™ snapshot sau khi quÃ©t vÃ  khÃ´ng Ä‘Äƒng nháº­p email trÃªn Ä‘iá»‡n thoáº¡i. Xem `HUONG_DAN_SUPABASE.md`.
 
-## Dữ liệu và cập nhật
+## Dá»¯ liá»‡u vÃ  cáº­p nháº­t
 
-Chương trình và dữ liệu nằm riêng. Database, token, cấu hình và lịch sử quét đều nằm trong thư mục dữ liệu đã chọn. Windows chỉ giữ một tệp nhỏ không nhạy cảm để nhớ đường dẫn.
+ChÆ°Æ¡ng trÃ¬nh vÃ  dá»¯ liá»‡u náº±m riÃªng. Database, token, cáº¥u hÃ¬nh vÃ  lá»‹ch sá»­ quÃ©t Ä‘á»u náº±m trong thÆ° má»¥c dá»¯ liá»‡u Ä‘Ã£ chá»n. Windows chá»‰ giá»¯ má»™t tá»‡p nhá» khÃ´ng nháº¡y cáº£m Ä‘á»ƒ nhá»› Ä‘Æ°á»ng dáº«n.
 
-Mục `Cài đặt` dùng sẵn kho `kienchuong/amazon-mail-reader-updates`. Mỗi release cần có:
+Má»¥c `CÃ i Ä‘áº·t` dÃ¹ng sáºµn kho `kienchuong/amazon-mail-reader-updates`. Má»—i release cáº§n cÃ³:
 
-- gói ZIP, ưu tiên tên kết thúc bằng `win64.zip`;
-- file `<tên-gói>.sha256` hoặc `SHA256SUMS.txt`;
-- file `run_app.bat` ở cấp gốc của ZIP.
+- gÃ³i ZIP, Æ°u tiÃªn tÃªn káº¿t thÃºc báº±ng `win64.zip`;
+- file `<tÃªn-gÃ³i>.sha256` hoáº·c `SHA256SUMS.txt`;
+- file `run_app.bat` á»Ÿ cáº¥p gá»‘c cá»§a ZIP.
 
-App kiểm tra SHA-256 trước khi cài, giữ bản chương trình cũ ở thư mục `.backup` và tự phục hồi nếu giải nén lỗi.
+App kiá»ƒm tra SHA-256 trÆ°á»›c khi cÃ i, giá»¯ báº£n chÆ°Æ¡ng trÃ¬nh cÅ© á»Ÿ thÆ° má»¥c `.backup` vÃ  tá»± phá»¥c há»“i náº¿u giáº£i nÃ©n lá»—i.
 
-## Chạy từ mã nguồn
+## Cháº¡y tá»« mÃ£ nguá»“n
 
-Yêu cầu Python 3.12 trên Windows có Tkinter và thư viện trong `requirements.txt`. File `run_app.bat` ưu tiên Python đi kèm Codex, sau đó tự tìm Python đã cài trên Windows. Nếu thiếu CustomTkinter hoặc tksheet, file này tự cài thư viện trước khi mở app.
+YÃªu cáº§u Python 3.12 trÃªn Windows cÃ³ Tkinter vÃ  thÆ° viá»‡n trong `requirements.txt`. File `run_app.bat` Æ°u tiÃªn Python Ä‘i kÃ¨m Codex, sau Ä‘Ã³ tá»± tÃ¬m Python Ä‘Ã£ cÃ i trÃªn Windows. Náº¿u thiáº¿u CustomTkinter hoáº·c tksheet, file nÃ y tá»± cÃ i thÆ° viá»‡n trÆ°á»›c khi má»Ÿ app.
 
-## Cấu trúc chính
+## Cáº¥u trÃºc chÃ­nh
 
-- `app.py`: khởi động ứng dụng.
-- `amzmail/ui.py`: khung cửa sổ, điều hướng và các thao tác chung.
-- `amzmail/views/`: giao diện riêng cho Inbox, Payment, Accounts và Cài đặt.
-- `amzmail/google_sheets.py`: xuất CSV và đồng bộ Google Sheet.
-- `amzmail/microsoft_graph.py`: đăng nhập OAuth và đọc Outlook.
-- `amzmail/imap_reader.py`: đọc Gmail, Yahoo và email tên miền qua IMAP.
+- `app.py`: khá»Ÿi Ä‘á»™ng á»©ng dá»¥ng.
+- `amzmail/ui.py`: khung cá»­a sá»•, Ä‘iá»u hÆ°á»›ng vÃ  cÃ¡c thao tÃ¡c chung.
+- `amzmail/views/`: giao diá»‡n riÃªng cho Inbox, Payment, Accounts vÃ  CÃ i Ä‘áº·t.
+- `amzmail/google_sheets.py`: xuáº¥t CSV vÃ  Ä‘á»“ng bá»™ Google Sheet.
+- `amzmail/microsoft_graph.py`: Ä‘Äƒng nháº­p OAuth vÃ  Ä‘á»c Outlook.
+- `amzmail/imap_reader.py`: Ä‘á»c Gmail, Yahoo vÃ  email tÃªn miá»n qua IMAP.
