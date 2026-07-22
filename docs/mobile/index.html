@@ -60,7 +60,13 @@
     }
 
     if (!api || !token) { root.innerHTML = '<div class="app empty">Dashboard link is not configured.</div>'; return; }
-    fetch(api + '?action=snapshot&t=' + encodeURIComponent(token)).then(response => response.ok ? response.json() : Promise.reject()).then(value => { data = value; shell(); }).catch(() => root.innerHTML = '<div class="app empty">Unable to load dashboard.</div>');
+    fetch(api + '?action=snapshot&t=' + encodeURIComponent(token))
+      .then(async response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      })
+      .then(value => { data = value; shell(); })
+      .catch(error => root.innerHTML = '<div class="app empty">Unable to load dashboard. ' + esc(error.message) + '</div>');
   })();
   </script>
 </body>
