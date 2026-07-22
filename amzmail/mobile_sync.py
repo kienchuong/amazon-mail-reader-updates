@@ -17,16 +17,17 @@ def _value(row, key: str, default=""):
     return default if value is None else value
 
 
-def mobile_message_rows(messages, body_loader: Callable) -> list[dict]:
+def mobile_message_rows(messages, body_loader: Callable | None = None) -> list[dict]:
     """Build the current mobile snapshot without persisting mail bodies locally."""
     rows = []
     for message in messages:
         body = ""
         body_error = ""
-        try:
-            body = body_loader(message) or ""
-        except Exception as exc:  # A single unavailable mailbox must not block the snapshot.
-            body_error = str(exc)
+        if body_loader is not None:
+            try:
+                body = body_loader(message) or ""
+            except Exception as exc:  # A single unavailable mailbox must not block the snapshot.
+                body_error = str(exc)
         truncated = len(body) > MAX_BODY_CHARACTERS
         rows.append(
             {
@@ -44,7 +45,9 @@ def mobile_message_rows(messages, body_loader: Callable) -> list[dict]:
                 "payment_id": str(_value(message, "payment_id")),
                 "snippet": str(_value(message, "snippet")),
                 "body": body[:MAX_BODY_CHARACTERS],
-                "body_status": "truncated" if truncated else ("error" if body_error else "ok"),
+                "body_status": "pending" if body_loader is None else (
+                    "truncated" if truncated else ("error" if body_error else "ok")
+                ),
                 "body_error": body_error[:500],
             }
         )
@@ -65,7 +68,7 @@ def mobile_payment_rows(payments) -> list[dict]:
     ]
 
 
-def build_mobile_snapshot(messages, payments, days_back: int, body_loader: Callable) -> dict:
+def build_mobile_snapshot(messages, payments, days_back: int, body_loader: Callable | None = None) -> dict:
     return {
         "action": "mobile_snapshot",
         "range_days": max(int(days_back), 1),
