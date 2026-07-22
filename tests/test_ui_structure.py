@@ -62,6 +62,18 @@ class UiStructureTests(unittest.TestCase):
         self.assertIn("def refresh_current_range", controller)
         self.assertIn("self.db.list_payments(self.display_days())", controller)
 
+    def test_accounts_view_has_distinct_single_account_scan_action(self):
+        accounts = (ROOT / "amzmail" / "views" / "accounts.py").read_text(encoding="utf-8")
+        controller = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
+        self.assertIn('text="Quét account này"', accounts)
+        self.assertIn('fg_color="#168a55"', accounts)
+        self.assertIn("command=self.start_selected_account_scan", accounts)
+        self.assertIn("def start_selected_account_scan", controller)
+        self.assertIn("self.db.get_account(self.selected_account_id)", controller)
+        self.assertIn("if self.scan_running", controller)
+        ast.parse(accounts)
+        ast.parse(controller)
+
 
     def test_mobile_dashboard_stays_in_its_own_sync_module(self):
         controller = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
