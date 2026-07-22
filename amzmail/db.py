@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .payment_sort import sort_payments
 from .vault import Vault
 
 
@@ -303,13 +304,14 @@ class AppDatabase:
     def list_payments(self, days_back: int = 7) -> list[sqlite3.Row]:
         range_start = self._range_start(days_back)
         with self._lock:
-            return list(self.conn.execute(
+            rows = list(self.conn.execute(
                 """SELECT m.*, a.name AS account_name, a.email AS account_email
                    FROM messages m JOIN accounts a ON a.id=m.account_id
                    WHERE m.category='Payment'
                      AND substr(COALESCE(m.mail_date, m.first_seen_at), 1, 10) >= ?
                    ORDER BY COALESCE(m.mail_date, m.first_seen_at) DESC"""
                 , (range_start,)))
+        return sort_payments(rows)
 
     def set_setting(self, key: str, value: str) -> None:
         with self._lock, self.conn:
