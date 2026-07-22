@@ -1,4 +1,6 @@
-# Mobile Dashboard
+# Mobile Dashboard (Da thay the)
+
+Mobile Dashboard da chuyen sang Supabase. Mo `HUONG_DAN_SUPABASE.md` va khong can trien khai them Google Apps Script cho mobile.
 
 Mobile Dashboard la trang web rieng cho dien thoai, khong dang nhap Gmail, Outlook hoac Yahoo.
 
