@@ -22,10 +22,12 @@
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const date = value => { const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return match ? match[3] + '/' + match[2] : String(value || ''); };
     const money = row => row.amount === '' || row.amount == null ? '' : esc(row.currency) + ' ' + Number(row.amount).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+    const snapshotMeta = () => data.meta && Object.keys(data.meta).length ? data.meta : data;
 
     function shell() {
-      const sync = data.meta && data.meta.synced_at ? new Date(data.meta.synced_at).toLocaleString() : 'No data';
-      const rangeDays = (data.meta || {}).range_days || 7;
+      const meta = snapshotMeta();
+      const sync = meta.synced_at ? new Date(meta.synced_at).toLocaleString() : 'No data';
+      const rangeDays = meta.range_days || 7;
       root.innerHTML = '<div class="app"><div class="top"><div><div class="brand">Amazon Mail Reader<small>Mail overview</small></div><div class="sync">Synced ' + esc(sync) + ' | ' + esc(rangeDays) + ' days</div></div><div class="amazon">amazon</div></div><div id="page"></div></div><nav class="nav"><button id="inbox" class="' + (tab === 'inbox' ? 'active' : '') + '">Inbox</button><button id="payment" class="' + (tab === 'payment' ? 'active' : '') + '">Payments</button></nav><div id="modal" class="modal"></div>';
       document.querySelector('#inbox').onclick = () => { tab = 'inbox'; shell(); };
       document.querySelector('#payment').onclick = () => { tab = 'payment'; shell(); };
@@ -50,7 +52,7 @@
 
     function openMail(message) {
       const modal = document.querySelector('#modal');
-      const body = message.body_status === 'error' ? '[Body unavailable: ' + esc(message.body_error) + ']' : esc(message.body || '[No text body]');
+      const body = message.body_status === 'pending' ? '[Mail content is syncing. Please reopen in a moment.]' : (message.body_status === 'error' ? '[Body unavailable: ' + esc(message.body_error) + ']' : esc(message.body || '[No text body]'));
       modal.innerHTML = '<section class="sheet"><button class="close">Close</button><h2>' + esc(message.subject) + '</h2><div class="meta">' + esc(message.account_name) + ' | ' + esc(message.from_addr) + ' | ' + date(message.mail_date) + '</div><hr><div>' + body + '</div></section>';
       modal.classList.add('open'); modal.querySelector('.close').onclick = () => modal.classList.remove('open');
     }
@@ -62,13 +64,25 @@
     }
 
     if (!api || !token) { root.innerHTML = '<div class="app empty">Dashboard link is not configured.</div>'; return; }
-    fetch(api + '?action=snapshot&t=' + encodeURIComponent(token))
+    const loadSnapshot = (quiet = false) => fetch(api + '?action=snapshot&t=' + encodeURIComponent(token) + '&_=' + Date.now(), {cache:'no-store'})
       .then(async response => {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
       })
-      .then(value => { data = value; shell(); })
-      .catch(error => root.innerHTML = '<div class="app empty">Unable to load dashboard. ' + esc(error.message) + '</div>');
+      .then(value => {
+        data = value;
+        const sync = document.querySelector('.sync');
+        if (!sync) shell();
+        else {
+          const meta = snapshotMeta();
+          sync.textContent = 'Synced ' + (meta.synced_at ? new Date(meta.synced_at).toLocaleString() : 'No data') + ' | ' + (meta.range_days || 7) + ' days';
+          tab === 'inbox' ? paint() : payments();
+        }
+      })
+      .catch(error => { if (!quiet) root.innerHTML = '<div class="app empty">Unable to load dashboard. ' + esc(error.message) + '</div>'; });
+    loadSnapshot();
+    setInterval(() => loadSnapshot(true), 15000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) loadSnapshot(true); });
   })();
   </script>
 </body>
