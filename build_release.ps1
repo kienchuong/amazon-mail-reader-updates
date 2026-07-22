@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "0.6.1"
+  [string]$Version = "0.6.2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,7 +30,7 @@ try {
     Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $package -CompressionLevel Optimal
     $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
     Set-Content -LiteralPath ($package + ".sha256") -Value "$hash  $packageName" -Encoding ascii
-    Write-Host "ÄÃ£ táº¡o: $package"
+    Write-Host "Đã tạo: $package"
     Write-Host "SHA-256: $hash"
 }
 finally {
