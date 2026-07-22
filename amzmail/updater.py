@@ -61,14 +61,14 @@ def check_for_update(repo: str, current_version: str) -> UpdateInfo | None:
     if package is None:
         package = next((item for item in assets if str(item.get("name", "")).lower().endswith(".zip")), None)
     if package is None:
-        raise UpdateError("B?n ph�t h�nh chua c� g�i ZIP d�nh cho Windows.")
+        raise UpdateError("Bản phát hành chưa có gói ZIP dành cho Windows.")
     package_name = str(package["name"])
     checksum = next(
         (item for item in assets if str(item.get("name", "")).lower() in {f"{package_name}.sha256".lower(), "sha256sums.txt"}),
         None,
     )
     if checksum is None:
-        raise UpdateError("B?n ph�t h�nh thi?u file SHA-256 n�n app kh�ng t?i d? b?o d?m an to�n.")
+        raise UpdateError("Bản phát hành thiếu file SHA-256 nên app không tải để bảo đảm an toàn.")
     return UpdateInfo(version, str(package["browser_download_url"]), str(checksum["browser_download_url"]), package_name)
 
 
