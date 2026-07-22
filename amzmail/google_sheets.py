@@ -1,10 +1,11 @@
-
 from __future__ import annotations
 
 import csv
 import json
 import urllib.request
 from pathlib import Path
+
+from .payment_sort import sort_payments
 
 
 PAYMENT_COLUMNS = [
@@ -30,7 +31,7 @@ GOOGLE_SHEET_COLUMNS = [
 
 def payment_rows(payments) -> list[dict]:
     rows = []
-    for row in payments:
+    for row in sort_payments(payments):
         rows.append({column: row[column] for column in PAYMENT_COLUMNS})
     return rows
 
@@ -38,7 +39,7 @@ def payment_rows(payments) -> list[dict]:
 def google_sheet_rows(payments) -> list[dict]:
     return [
         {column: row[column] for column in GOOGLE_SHEET_COLUMNS}
-        for row in payments
+        for row in sort_payments(payments)
     ]
 
 
@@ -67,4 +68,3 @@ def post_to_google_sheet(webhook_url: str, secret: str, payments) -> tuple[int, 
     with urllib.request.urlopen(request, timeout=30) as response:
         body = response.read().decode("utf-8", errors="replace")
         return response.status, body
-
