@@ -67,6 +67,7 @@ class UiStructureTests(unittest.TestCase):
         controller = (ROOT / "amzmail" / "ui.py").read_text(encoding="utf-8")
         self.assertIn('text="Quét account này"', accounts)
         self.assertIn('fg_color="#168a55"', accounts)
+        self.assertNotIn("disabled_fg_color", accounts)
         self.assertIn("command=self.start_selected_account_scan", accounts)
         self.assertIn("def start_selected_account_scan", controller)
         self.assertIn("self.db.get_account(self.selected_account_id)", controller)
