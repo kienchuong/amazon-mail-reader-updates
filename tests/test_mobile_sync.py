@@ -28,5 +28,12 @@ class MobileSyncTests(unittest.TestCase):
         self.assertEqual(len(large["messages"][0]["body"]), MAX_BODY_CHARACTERS)
 
 
+    def test_metadata_snapshot_does_not_wait_for_mail_bodies(self):
+        messages = [{"account_id": 1, "folder": "INBOX", "uid": "2", "subject": "New mail"}]
+        snapshot = build_mobile_snapshot(messages, [], 7)
+        self.assertEqual(snapshot["messages"][0]["body_status"], "pending")
+        self.assertEqual(snapshot["messages"][0]["body"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
