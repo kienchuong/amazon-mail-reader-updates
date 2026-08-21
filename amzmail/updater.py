@@ -140,26 +140,7 @@ function Invoke-WithRetry {{
 
 try {{
     Wait-Process -Id {parent_pid} -ErrorAction SilentlyContinue
-
-    # A virtual-environment pythonw launcher can leave a companion process alive
-    # briefly after the Qt process exits. Wait for every process using this build.
-    $deadline = (Get-Date).AddSeconds(30)
-    do {{
-        $running = @(
-            Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-                Where-Object {{
-                    $_.ProcessId -ne $PID -and
-                    $_.CommandLine -and
-                    $_.CommandLine.IndexOf($program, [StringComparison]::OrdinalIgnoreCase) -ge 0
-                }}
-        )
-        if ($running.Count -eq 0) {{ break }}
-        Start-Sleep -Milliseconds 250
-    }} while ((Get-Date) -lt $deadline)
-    if ($running.Count -gt 0) {{
-        $processIds = ($running | ForEach-Object {{ $_.ProcessId }}) -join ', '
-        throw "Ứng dụng chưa đóng hoàn toàn (PID: $processIds)."
-    }}
+    Start-Sleep -Milliseconds 750
 
     $backup = $program + '.backup-' + (Get-Date -Format 'yyyyMMddHHmmss')
     if (Test-Path -LiteralPath $program) {{

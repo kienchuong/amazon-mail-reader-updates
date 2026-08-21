@@ -129,7 +129,7 @@ class CloudflareSyncService:
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": "AmazonMailReader/0.6.9",
+                "User-Agent": "AmazonMailReader/0.6.10",
                 "x-amr-sync-secret": self.config.sync_secret,
             },
             method="POST",
@@ -141,7 +141,7 @@ class CloudflareSyncService:
             raise RemoteSyncError("Chưa cấu hình Cloudflare Worker URL.")
         request = urllib.request.Request(
             self.config.worker_url + "/health",
-            headers={"Accept": "application/json", "User-Agent": "AmazonMailReader/0.6.9"},
+            headers={"Accept": "application/json", "User-Agent": "AmazonMailReader/0.6.10"},
             method="GET",
         )
         _, body = self._send(request, idempotent=True)

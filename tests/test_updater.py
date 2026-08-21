@@ -37,7 +37,7 @@ class UpdaterScriptTests(unittest.TestCase):
             archive.writestr(launcher_name, "@exit /b 0\r\n")
             archive.writestr("new-version.txt", "installed")
 
-    def test_waits_for_all_processes_using_program_directory(self) -> None:
+    def test_unrelated_process_command_line_does_not_block_update(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             program = root / "amazon-mail-reader-0.6.8-win64"
@@ -48,7 +48,7 @@ class UpdaterScriptTests(unittest.TestCase):
 
             holders = [
                 subprocess.Popen(
-                    [sys.executable, "-c", "import time; time.sleep(1.2)", str(program)],
+                    [sys.executable, "-c", "import time; time.sleep(10)", str(program)],
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
                 for _ in range(2)
@@ -58,10 +58,11 @@ class UpdaterScriptTests(unittest.TestCase):
                 result = self.run_script(_build_update_script(package, program, "run_app.bat", 999999), root)
             finally:
                 for process in holders:
+                    process.terminate()
                     process.wait(timeout=5)
 
             self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-            self.assertGreaterEqual(time.monotonic() - started, 0.8)
+            self.assertLess(time.monotonic() - started, 5)
             self.assertTrue((program / "new-version.txt").exists())
             self.assertFalse(package.exists())
             backups = list(root.glob(program.name + ".backup-*"))
