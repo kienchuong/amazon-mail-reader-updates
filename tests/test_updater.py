@@ -7,13 +7,20 @@ import time
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
-from amzmail.updater import _build_update_script
+from amzmail.updater import _build_update_script, launch_update
 
 
 @unittest.skipUnless(sys.platform == "win32", "The updater is Windows-only.")
 class UpdaterScriptTests(unittest.TestCase):
-    def run_script(self, script: str, root: Path) -> subprocess.CompletedProcess[str]:
+    def run_script(
+        self,
+        script: str,
+        root: Path,
+        *,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         script_path = root / "apply-update.ps1"
         script_path.write_text(script, encoding="utf-8-sig")
         return subprocess.run(
@@ -29,6 +36,7 @@ class UpdaterScriptTests(unittest.TestCase):
             text=True,
             timeout=45,
             check=False,
+            cwd=cwd,
         )
 
     @staticmethod
@@ -60,6 +68,7 @@ class UpdaterScriptTests(unittest.TestCase):
                 for process in holders:
                     process.terminate()
                     process.wait(timeout=5)
+            time.sleep(0.5)
 
             self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
             self.assertLess(time.monotonic() - started, 5)
@@ -85,6 +94,21 @@ class UpdaterScriptTests(unittest.TestCase):
             self.assertEqual(marker.read_text(encoding="utf-8"), "old")
             self.assertTrue(package.exists())
             self.assertTrue((root / "update-error.txt").exists())
+
+    def test_launch_update_starts_powershell_outside_program_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            program = root / "amazon-mail-reader-0.6.10-win64"
+            program.mkdir()
+            package = root / "amazon-mail-reader-0.6.11-win64.zip"
+            package.write_bytes(b"package")
+
+            with mock.patch("amzmail.updater.subprocess.Popen") as popen:
+                launch_update(package, program, "run_app.bat", 12345)
+
+            self.assertEqual(popen.call_args.kwargs["cwd"], str(root))
+            script = (root / "apply-update.ps1").read_text(encoding="utf-8-sig")
+            self.assertIn("Set-Location -LiteralPath (Split-Path -Parent $package)", script)
 
 
 if __name__ == "__main__":

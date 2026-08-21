@@ -118,6 +118,11 @@ $launcherName = {_ps_quote(launcher_name)}
 $errorPath = Join-Path (Split-Path $package) 'update-error.txt'
 $backup = $null
 
+# The app launcher can start Python with the program directory as its current
+# location. PowerShell would then keep that directory locked and prevent the
+# backup rename, even after the app process exits.
+Set-Location -LiteralPath (Split-Path -Parent $package)
+
 function Invoke-WithRetry {{
     param(
         [Parameter(Mandatory = $true)][scriptblock]$Operation,
@@ -185,6 +190,7 @@ def launch_update(package_path: Path, program_dir: Path, launcher_name: str, par
     script_path.write_text(script, encoding="utf-8-sig")
     subprocess.Popen(
         ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+        cwd=str(package_path.parent),
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         close_fds=True,
     )
