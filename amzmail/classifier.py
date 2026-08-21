@@ -39,6 +39,14 @@ PAYMENT_KEYWORDS = (
     "disbursement",
 )
 
+SUBJECT_PREFIX_PATTERN = re.compile(r"^(?:re|fw|fwd)\s*:\s*", re.I)
+SUPPORT_CASE_PATTERN = re.compile(r"^\[\s*case\b", re.I)
+PAYMENT_DECLINED_PATTERN = re.compile(
+    r"^action\s+required\s*:\s*payment\s+declined\b",
+    re.I,
+)
+REMITTANCE_ADVICE_PATTERN = re.compile(r"\bremittance\s+advice\b", re.I)
+
 REJECT_KEYWORDS = (
     "reject",
     "rejected",
@@ -161,12 +169,39 @@ def _domain_matches(domain: str, allowed: tuple[str, ...]) -> bool:
     return any(domain == item or domain.endswith("." + item) for item in allowed)
 
 
+def normalize_subject(subject: str) -> str:
+    normalized = re.sub(r"\s+", " ", subject or "").strip().casefold()
+    while True:
+        without_prefix = SUBJECT_PREFIX_PATTERN.sub("", normalized, count=1)
+        if without_prefix == normalized:
+            return normalized
+        normalized = without_prefix.strip()
+
+
+def payment_subject_rule(subject: str) -> str | None:
+    normalized = normalize_subject(subject)
+    if SUPPORT_CASE_PATTERN.match(normalized):
+        return "exclude_support_case"
+    if PAYMENT_DECLINED_PATTERN.match(normalized):
+        return "exclude_payment_declined"
+    if REMITTANCE_ADVICE_PATTERN.search(normalized):
+        return "valid_remittance_advice"
+    return None
+
+
 def classify(from_addr: str, subject: str, body_text: str = "") -> Classification:
     haystack = f"{subject}\n{body_text}".lower()
     haystack = haystack.replace("(s)", "")
     domain = _domain(from_addr)
     is_amazon = _domain_matches(domain, AMAZON_DOMAINS)
     is_security_sender = _domain_matches(domain, SECURITY_DOMAINS)
+    is_amazon_message = is_amazon or "amazon" in subject.lower()
+    payment_rule = payment_subject_rule(subject)
+
+    # Subject exclusions win over all payment terms, while known remittance
+    # subjects win over unrelated keywords that may appear in the body.
+    if payment_rule == "valid_remittance_advice" and is_amazon_message:
+        return Classification("Payment", "Normal", is_amazon)
 
     if any(k in haystack for k in SECURITY_URGENT_KEYWORDS):
         return Classification("Security", "Urgent", is_security_sender)
@@ -175,9 +210,7 @@ def classify(from_addr: str, subject: str, body_text: str = "") -> Classificatio
     if any(k in haystack for k in SECURITY_MEDIUM_KEYWORDS):
         return Classification("Security", "Medium", is_security_sender)
 
-    if is_amazon or "amazon" in subject.lower():
-        if any(k in haystack for k in PAYMENT_KEYWORDS):
-            return Classification("Payment", "Normal", is_amazon)
+    if is_amazon_message:
         if any(k in haystack for k in REJECT_KEYWORDS):
             return Classification("Reject", "High", is_amazon)
         if any(k in haystack for k in AMAZON_ACCOUNT_KEYWORDS):
