@@ -105,34 +105,102 @@ def download_update(info: UpdateInfo, data_dir: Path) -> Path:
     return package_path
 
 
-def launch_update(package_path: Path, program_dir: Path, launcher_name: str, parent_pid: int) -> None:
-    def ps_quote(value: str) -> str:
-        return "'" + value.replace("'", "''") + "'"
+def _ps_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
-    script_path = package_path.parent / "apply-update.ps1"
-    backup = program_dir.with_name(program_dir.name + ".backup")
-    script = f"""
+
+def _build_update_script(package_path: Path, program_dir: Path, launcher_name: str, parent_pid: int) -> str:
+    return f"""
 $ErrorActionPreference = 'Stop'
-Wait-Process -Id {parent_pid} -ErrorAction SilentlyContinue
-$program = {ps_quote(str(program_dir))}
-$backup = {ps_quote(str(backup))}
-$package = {ps_quote(str(package_path))}
-if (Test-Path -LiteralPath $backup) {{ Remove-Item -LiteralPath $backup -Recurse -Force }}
-if (Test-Path -LiteralPath $program) {{ Move-Item -LiteralPath $program -Destination $backup }}
+$program = {_ps_quote(str(program_dir))}
+$package = {_ps_quote(str(package_path))}
+$launcherName = {_ps_quote(launcher_name)}
+$errorPath = Join-Path (Split-Path $package) 'update-error.txt'
+$backup = $null
+
+function Invoke-WithRetry {{
+    param(
+        [Parameter(Mandatory = $true)][scriptblock]$Operation,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [int]$Attempts = 20,
+        [int]$DelayMilliseconds = 500
+    )
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {{
+        try {{
+            & $Operation
+            return
+        }} catch {{
+            if ($attempt -eq $Attempts) {{
+                throw "$Description sau $Attempts lần thử: $($_.Exception.Message)"
+            }}
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }}
+    }}
+}}
+
 try {{
+    Wait-Process -Id {parent_pid} -ErrorAction SilentlyContinue
+
+    # A virtual-environment pythonw launcher can leave a companion process alive
+    # briefly after the Qt process exits. Wait for every process using this build.
+    $deadline = (Get-Date).AddSeconds(30)
+    do {{
+        $running = @(
+            Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+                Where-Object {{
+                    $_.ProcessId -ne $PID -and
+                    $_.CommandLine -and
+                    $_.CommandLine.IndexOf($program, [StringComparison]::OrdinalIgnoreCase) -ge 0
+                }}
+        )
+        if ($running.Count -eq 0) {{ break }}
+        Start-Sleep -Milliseconds 250
+    }} while ((Get-Date) -lt $deadline)
+    if ($running.Count -gt 0) {{
+        $processIds = ($running | ForEach-Object {{ $_.ProcessId }}) -join ', '
+        throw "Ứng dụng chưa đóng hoàn toàn (PID: $processIds)."
+    }}
+
+    $backup = $program + '.backup-' + (Get-Date -Format 'yyyyMMddHHmmss')
+    if (Test-Path -LiteralPath $program) {{
+        Invoke-WithRetry -Description 'Không thể tạo bản sao lưu ứng dụng' -Operation {{
+            Move-Item -LiteralPath $program -Destination $backup -ErrorAction Stop
+        }}
+    }}
+
     New-Item -ItemType Directory -Path $program -Force | Out-Null
     Expand-Archive -LiteralPath $package -DestinationPath $program -Force
-    $launcher = Join-Path $program {ps_quote(launcher_name)}
+    $launcher = Join-Path $program $launcherName
     if (-not (Test-Path -LiteralPath $launcher)) {{ throw 'Gói cập nhật thiếu file chạy ứng dụng.' }}
+
     Start-Process -FilePath $launcher -WindowStyle Hidden
+    Remove-Item -LiteralPath $package -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $errorPath -Force -ErrorAction SilentlyContinue
 }} catch {{
-    if (Test-Path -LiteralPath $program) {{ Remove-Item -LiteralPath $program -Recurse -Force }}
-    if (Test-Path -LiteralPath $backup) {{ Move-Item -LiteralPath $backup -Destination $program }}
-    $oldLauncher = Join-Path $program {ps_quote(launcher_name)}
-    if (Test-Path -LiteralPath $oldLauncher) {{ Start-Process -FilePath $oldLauncher -WindowStyle Hidden }}
-    $_ | Out-File -LiteralPath (Join-Path (Split-Path $package) 'update-error.txt') -Encoding utf8
+    $failure = $_ | Out-String
+    if ($backup -and (Test-Path -LiteralPath $backup)) {{
+        if (Test-Path -LiteralPath $program) {{
+            Invoke-WithRetry -Description 'Không thể xóa bản cập nhật chưa hoàn tất' -Operation {{
+                Remove-Item -LiteralPath $program -Recurse -Force -ErrorAction Stop
+            }}
+        }}
+        Invoke-WithRetry -Description 'Không thể phục hồi phiên bản cũ' -Operation {{
+            Move-Item -LiteralPath $backup -Destination $program -ErrorAction Stop
+        }}
+    }}
+    $oldLauncher = Join-Path $program $launcherName
+    if (Test-Path -LiteralPath $oldLauncher) {{
+        Start-Process -FilePath $oldLauncher -WindowStyle Hidden
+    }}
+    $failure | Out-File -LiteralPath $errorPath -Encoding utf8
+    exit 1
 }}
 """.strip()
+
+
+def launch_update(package_path: Path, program_dir: Path, launcher_name: str, parent_pid: int) -> None:
+    script_path = package_path.parent / "apply-update.ps1"
+    script = _build_update_script(package_path, program_dir, launcher_name, parent_pid)
     script_path.write_text(script, encoding="utf-8-sig")
     subprocess.Popen(
         ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
