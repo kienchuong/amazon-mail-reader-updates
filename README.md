@@ -1,4 +1,4 @@
-# Amazon Mail Reader 0.6.7
+# Amazon Mail Reader 0.6.8
 
 Ứng dụng Windows chỉ đọc để xem tập trung mail Amazon, cảnh báo bảo mật và thống kê payment.
 

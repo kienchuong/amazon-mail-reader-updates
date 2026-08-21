@@ -2,11 +2,12 @@
   "name": "amazon-mail-reader-mobile-worker",
   "private": true,
   "scripts": {
+    "test": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260821.0",
+    "@cloudflare/workers-types": "^5.20260821.1",
     "typescript": "^5.9.0",
     "wrangler": "^4.0.0"
   }

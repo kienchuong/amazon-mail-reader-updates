@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "0.6.7"
+  [string]$Version = "0.6.8"
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +27,13 @@ try {
     Copy-Item -LiteralPath (Join-Path $project "amzmail") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $project "assets") -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $project "cloudflare") -Destination $stage -Recurse
-    Get-ChildItem -LiteralPath $stage -Directory -Filter "__pycache__" -Recurse | Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $stage -Directory -Recurse |
+        Where-Object { $_.Name -in @("__pycache__", "node_modules", ".wrangler") } |
+        Sort-Object { $_.FullName.Length } -Descending |
+        Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $stage -File -Recurse |
+        Where-Object { $_.Name -in @(".env", ".dev.vars") -or $_.Extension -in @(".pyc", ".pyo") } |
+        Remove-Item -Force
     if (Test-Path -LiteralPath $package) { Remove-Item -LiteralPath $package -Force }
     Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $package -CompressionLevel Optimal
     $hash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
