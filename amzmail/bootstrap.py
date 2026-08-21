@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from tkinter import Tk, filedialog, messagebox, simpledialog
 
-from .vault import VAULT_FILE, Vault, VaultError
+from PySide6.QtWidgets import QFileDialog, QInputDialog, QLineEdit, QMessageBox, QWidget
+
+from .vault import VAULT_FILE, Vault, VaultError, VaultMigrationRequired
 
 
 APP_FOLDER = "AmazonMailReader"
@@ -39,94 +40,88 @@ def _inside(path: Path, parent: Path) -> bool:
         return False
 
 
-def _choose_data_dir(root: Tk, program_dir: Path) -> Path | None:
+def _choose_data_dir(parent: QWidget | None, program_dir: Path) -> Path | None:
     initial = Path("D:/") if Path("D:/").exists() else Path.home()
     while True:
-        selected = filedialog.askdirectory(
-            parent=root,
-            title="Chọn thư mục lưu dữ liệu Amazon Mail Reader (không chọn ổ C)",
-            initialdir=str(initial),
-            mustexist=False,
+        selected = QFileDialog.getExistingDirectory(
+            parent,
+            "Chọn thư mục lưu dữ liệu Amazon Mail Reader (không chọn ổ C)",
+            str(initial),
+            QFileDialog.Option.ShowDirsOnly,
         )
         if not selected:
             return None
         path = Path(selected).resolve()
         system_drive = os.environ.get("SystemDrive", "C:").rstrip("\\/").lower()
         if path.drive.rstrip("\\/").lower() == system_drive:
-            messagebox.showwarning(
+            QMessageBox.warning(
+                parent,
                 "Không chọn ổ C",
                 "Hãy chọn một thư mục ở ổ khác để dữ liệu không bị mất khi cài lại Windows.",
-                parent=root,
             )
             continue
         if _inside(path, program_dir):
-            messagebox.showwarning(
+            QMessageBox.warning(
+                parent,
                 "Chọn thư mục riêng",
                 "Thư mục dữ liệu phải nằm ngoài thư mục chương trình để cập nhật không ảnh hưởng dữ liệu.",
-                parent=root,
             )
             continue
         try:
             path.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            messagebox.showerror("Không tạo được thư mục", str(exc), parent=root)
+            QMessageBox.critical(parent, "Không tạo được thư mục", str(exc))
             continue
         return path
 
 
-def _unlock_or_create(root: Tk, data_dir: Path) -> Vault | None:
+def _unlock_or_create(parent: QWidget | None, data_dir: Path) -> Vault | None:
     vault_path = data_dir / VAULT_FILE
     if vault_path.exists():
-        while True:
-            password = simpledialog.askstring(
-                "Mở Amazon Mail Reader",
-                "Nhập mật khẩu chính:",
-                show="*",
-                parent=root,
-            )
-            if password is None:
-                return None
-            try:
-                return Vault.open(data_dir, password)
-            except VaultError as exc:
-                messagebox.showerror("Không mở được dữ liệu", str(exc), parent=root)
-
-    messagebox.showinfo(
-        "Tạo kho dữ liệu",
-        "Đây là lần đầu dùng thư mục này. Hãy tạo mật khẩu chính và nhớ kỹ mật khẩu này.",
-        parent=root,
-    )
-    while True:
-        first = simpledialog.askstring("Tạo mật khẩu chính", "Mật khẩu chính (ít nhất 8 ký tự):", show="*", parent=root)
-        if first is None:
-            return None
-        second = simpledialog.askstring("Xác nhận mật khẩu", "Nhập lại mật khẩu chính:", show="*", parent=root)
-        if second is None:
-            return None
-        if first != second:
-            messagebox.showwarning("Không khớp", "Hai mật khẩu không giống nhau.", parent=root)
-            continue
         try:
-            return Vault.create(data_dir, first)
+            return Vault.open_auto(data_dir)
+        except VaultMigrationRequired:
+            QMessageBox.information(
+                parent,
+                "Chuyển sang mở tự động",
+                "Danh sách account, token và App Password vẫn được giữ nguyên.\n\n"
+                "Nhập mật khẩu chính hiện tại một lần cuối để Windows bảo vệ khóa dữ liệu cho tài khoản Windows này. "
+                "Từ lần mở app sau sẽ không hỏi mật khẩu nữa.",
+            )
+            while True:
+                password, accepted = QInputDialog.getText(
+                    parent,
+                    "Mở Amazon Mail Reader",
+                    "Nhập mật khẩu chính hiện tại:",
+                    QLineEdit.EchoMode.Password,
+                )
+                if not accepted:
+                    return None
+                try:
+                    return Vault.enable_auto_open(data_dir, password)
+                except VaultError as exc:
+                    QMessageBox.critical(parent, "Không mở được dữ liệu", str(exc))
         except VaultError as exc:
-            messagebox.showerror("Không tạo được kho dữ liệu", str(exc), parent=root)
+            QMessageBox.critical(parent, "Không mở được dữ liệu", str(exc))
+            return None
 
-
-def initialize_storage(program_dir: Path) -> tuple[Path, Vault] | None:
-    root = Tk()
-    root.withdraw()
     try:
-        data_dir = _load_saved_location()
-        if data_dir is not None and _inside(data_dir, program_dir):
-            data_dir = None
-        if data_dir is None:
-            data_dir = _choose_data_dir(root, program_dir)
-        if data_dir is None:
-            return None
-        vault = _unlock_or_create(root, data_dir)
-        if vault is None:
-            return None
-        _save_location(data_dir)
-        return data_dir, vault
-    finally:
-        root.destroy()
+        return Vault.create_auto(data_dir)
+    except VaultError as exc:
+        QMessageBox.critical(parent, "Không tạo được kho dữ liệu", str(exc))
+        return None
+
+
+def initialize_storage(program_dir: Path, parent: QWidget | None = None) -> tuple[Path, Vault] | None:
+    data_dir = _load_saved_location()
+    if data_dir is not None and _inside(data_dir, program_dir):
+        data_dir = None
+    if data_dir is None:
+        data_dir = _choose_data_dir(parent, program_dir)
+    if data_dir is None:
+        return None
+    vault = _unlock_or_create(parent, data_dir)
+    if vault is None:
+        return None
+    _save_location(data_dir)
+    return data_dir, vault

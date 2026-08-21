@@ -1,60 +1,77 @@
 from __future__ import annotations
 
-import tkinter as tk
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-import customtkinter as ctk
-
+from amzmail.views.controls import ValueBinding
 from amzmail.views.data_table import FluentSplitPane
 
 
 class InboxViewMixin:
-    def _build_inbox_view(self, parent: ctk.CTkFrame) -> None:
-        toolbar = ctk.CTkFrame(parent, fg_color="transparent")
-        toolbar.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 12))
-        toolbar.grid_columnconfigure(2, weight=1)
+    def _build_inbox_view(self, parent: QWidget) -> None:
+        page = QVBoxLayout(parent)
+        page.setContentsMargins(20, 18, 20, 18)
+        page.setSpacing(12)
 
-        ctk.CTkLabel(toolbar, text="Loại").grid(row=0, column=0, sticky="w", padx=(0, 7))
-        self.category_filter = tk.StringVar(value="All")
-        category_box = ctk.CTkComboBox(
-            toolbar,
-            variable=self.category_filter,
-            values=["All", "Payment", "Reject", "Amazon Account", "Amazon", "Security", "General"],
-            width=170,
-            state="readonly",
-            command=lambda _value: self.refresh_inbox(),
-        )
-        category_box.grid(row=0, column=1, sticky="w", padx=(0, 14))
+        toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("Loại"))
+        category_box = QComboBox()
+        category_box.addItems(["All", "Payment", "Reject", "Amazon Account", "Amazon", "Security", "General"])
+        category_box.setMinimumWidth(170)
+        self.category_filter = ValueBinding(category_box, "All")
+        category_box.currentTextChanged.connect(lambda _value: self.refresh_inbox())
+        toolbar.addWidget(category_box)
 
-        self.search_var = tk.StringVar()
-        search = ctk.CTkEntry(toolbar, textvariable=self.search_var, placeholder_text="Tìm tiêu đề hoặc người gửi")
-        search.grid(row=0, column=2, sticky="ew", padx=(0, 8))
-        search.bind("<Return>", lambda _event: self.refresh_inbox())
-        ctk.CTkButton(toolbar, text="Tìm kiếm", width=92, command=self.refresh_inbox).grid(row=0, column=3, padx=4)
-        self.scan_all_button = ctk.CTkButton(
-            toolbar, text="Quét tất cả", width=104, command=self.start_scan
-        )
-        self.scan_all_button.grid(row=0, column=4, padx=(4, 0))
+        search = QLineEdit()
+        search.setPlaceholderText("Tìm tiêu đề hoặc người gửi")
+        self.search_var = ValueBinding(search)
+        search.returnPressed.connect(self.refresh_inbox)
+        toolbar.addWidget(search, 1)
+        search_button = QPushButton("Tìm kiếm")
+        search_button.clicked.connect(self.refresh_inbox)
+        toolbar.addWidget(search_button)
+        self.scan_all_button = QPushButton("Quét tất cả")
+        self.scan_all_button.clicked.connect(self.start_scan)
+        toolbar.addWidget(self.scan_all_button)
+        page.addLayout(toolbar)
 
-        options = ctk.CTkFrame(parent, fg_color="transparent")
-        options.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
-        ctk.CTkLabel(options, text="Số ngày quét/hiển thị").pack(side="left")
-        self.days_back_var = tk.StringVar(value="7")
-        days_entry = ctk.CTkEntry(options, textvariable=self.days_back_var, width=65)
-        days_entry.pack(side="left", padx=(7, 18))
-        days_entry.bind("<Return>", self.refresh_current_range)
-        days_entry.bind("<FocusOut>", self.refresh_current_range)
-        ctk.CTkLabel(options, text="Giới hạn/account").pack(side="left")
-        self.max_messages_var = tk.StringVar(value="300")
-        ctk.CTkEntry(options, textvariable=self.max_messages_var, width=75).pack(side="left", padx=(7, 18))
-        self.include_general_var = tk.BooleanVar(value=False)
-        ctk.CTkSwitch(options, text="Lưu cả mail thường", variable=self.include_general_var).pack(side="left")
+        options = QHBoxLayout()
+        options.addWidget(QLabel("Số ngày quét/hiển thị"))
+        days_entry = QLineEdit("7")
+        days_entry.setFixedWidth(65)
+        self.days_back_var = ValueBinding(days_entry, "7")
+        days_entry.returnPressed.connect(self.refresh_current_range)
+        days_entry.editingFinished.connect(self.refresh_current_range)
+        options.addWidget(days_entry)
+        options.addSpacing(10)
+        options.addWidget(QLabel("Giới hạn/account"))
+        max_entry = QLineEdit("300")
+        max_entry.setFixedWidth(75)
+        self.max_messages_var = ValueBinding(max_entry, "300")
+        options.addWidget(max_entry)
+        options.addSpacing(10)
+        include_general = QCheckBox("Lưu cả mail thường")
+        self.include_general_var = ValueBinding(include_general, False)
+        options.addWidget(include_general)
+        options.addStretch(1)
+        page.addLayout(options)
 
         pane = FluentSplitPane(parent)
-        pane.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 18))
         self.inbox_pane = pane
-
-        list_frame = pane.left
-        detail_frame = pane.right
+        list_layout = QVBoxLayout(pane.left)
+        list_layout.setContentsMargins(0, 0, 0, 0)
+        detail_layout = QVBoxLayout(pane.right)
+        detail_layout.setContentsMargins(12, 12, 12, 12)
+        detail_layout.setSpacing(8)
 
         columns = ("date", "account", "category", "priority", "from", "subject", "amount")
         headings = {
@@ -63,7 +80,7 @@ class InboxViewMixin:
         }
         widths = {"date": 132, "account": 105, "category": 105, "priority": 72, "from": 180, "subject": 310, "amount": 100}
         self.inbox_tree = self._create_tree(
-            list_frame,
+            pane.left,
             columns,
             headings,
             widths,
@@ -72,24 +89,13 @@ class InboxViewMixin:
             status_columns=("category", "priority"),
         )
         self.inbox_tree.bind("<<TreeviewSelect>>", self.on_message_selected)
+        list_layout.addWidget(self.inbox_tree)
 
-        ctk.CTkLabel(
-            detail_frame,
-            text="Nội dung mail",
-            font=ctk.CTkFont(family="Segoe UI Variable", size=16, weight="bold"),
-        ).pack(
-            anchor="w", padx=14, pady=(12, 8)
-        )
-        self.message_text = ctk.CTkTextbox(
-            detail_frame,
-            wrap="word",
-            font=("Segoe UI Variable", 13),
-            corner_radius=8,
-            fg_color=("#ffffff", "#17191c"),
-        )
-        self.message_text.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        self.message_text.insert("1.0", "Chọn một mail để đọc nội dung.")
-        self.message_text.configure(state="disabled")
-
-        parent.grid_rowconfigure(2, weight=1)
-        parent.grid_columnconfigure(0, weight=1)
+        detail_title = QLabel("Nội dung mail")
+        detail_title.setObjectName("sectionTitle")
+        detail_layout.addWidget(detail_title)
+        self.message_text = QPlainTextEdit("Chọn một mail để đọc nội dung.")
+        self.message_text.setReadOnly(True)
+        self.message_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        detail_layout.addWidget(self.message_text, 1)
+        page.addWidget(pane, 1)

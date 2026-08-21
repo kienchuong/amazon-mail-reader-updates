@@ -1,3 +1,2 @@
 cryptography>=42,<47
-customtkinter>=5.2,<6
-tksheet>=7.5,<8
+PySide6>=6.10,<7

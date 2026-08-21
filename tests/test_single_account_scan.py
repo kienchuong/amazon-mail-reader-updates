@@ -1,12 +1,18 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+from PySide6.QtWidgets import QApplication
+
 from amzmail.ui import AmazonMailReaderApp
 
 
 class SingleAccountScanTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.qt_app = QApplication.instance() or QApplication([])
+
     def setUp(self):
-        self.app = object.__new__(AmazonMailReaderApp)
+        self.app = AmazonMailReaderApp.__new__(AmazonMailReaderApp)
         self.app.db = MagicMock()
 
     def test_dispatches_microsoft_oauth_to_graph_reader(self):

@@ -1,26 +1,39 @@
 from __future__ import annotations
 
-import tkinter as tk
-
-import customtkinter as ctk
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
+from PySide6.QtCore import Qt
 
 from amzmail.imap_reader import PROVIDER_PRESETS
+from amzmail.views.controls import ValueBinding
 
 
 class AccountsViewMixin:
-    def _build_accounts_view(self, parent: ctk.CTkFrame) -> None:
-        body = ctk.CTkFrame(parent, fg_color="transparent")
-        body.grid(row=0, column=0, sticky="nsew", padx=20, pady=18)
-        body.grid_rowconfigure(0, weight=1)
-        body.grid_columnconfigure(0, weight=5, uniform="accounts")
-        body.grid_columnconfigure(1, weight=6, uniform="accounts")
+    def _build_accounts_view(self, parent: QWidget) -> None:
+        page = QVBoxLayout(parent)
+        page.setContentsMargins(20, 18, 20, 18)
+        splitter = QSplitter(Qt.Orientation.Horizontal, parent)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(6)
+        page.addWidget(splitter, 1)
 
-        left = ctk.CTkFrame(body, corner_radius=10, fg_color=("#ffffff", "#202326"))
-        right = ctk.CTkScrollableFrame(body, corner_radius=10, label_text="Thông tin account")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        right.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-        right.grid_columnconfigure(1, weight=1)
-
+        left = QFrame(splitter)
+        left.setObjectName("card")
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(8, 8, 8, 8)
+        left_layout.setSpacing(8)
         columns = ("name", "email", "provider", "status", "active")
         headings = {"name": "Account", "email": "Email", "provider": "Loại", "status": "Kết nối", "active": "Bật"}
         widths = {"name": 115, "email": 185, "provider": 85, "status": 140, "active": 48}
@@ -33,81 +46,108 @@ class AccountsViewMixin:
             truncate_columns=("email",),
         )
         self.accounts_tree.bind("<<TreeviewSelect>>", self.on_account_selected)
+        left_layout.addWidget(self.accounts_tree, 1)
+        list_actions = QHBoxLayout()
+        refresh = QPushButton("Làm mới")
+        refresh.clicked.connect(self.refresh_accounts)
+        delete = QPushButton("Xóa account")
+        delete.setObjectName("dangerButton")
+        delete.clicked.connect(self.delete_selected_account)
+        list_actions.addWidget(refresh)
+        list_actions.addWidget(delete)
+        list_actions.addStretch(1)
+        left_layout.addLayout(list_actions)
 
-        actions = ctk.CTkFrame(left, fg_color="transparent")
-        actions.pack(fill="x", padx=10, pady=(0, 10))
-        ctk.CTkButton(actions, text="Làm mới", width=90, command=self.refresh_accounts).pack(side="left")
-        ctk.CTkButton(
-            actions, text="Xóa account", width=110, fg_color="#b42318", hover_color="#912018",
-            command=self.delete_selected_account,
-        ).pack(side="left", padx=8)
-
-        self.acc_name = tk.StringVar()
-        self.acc_email = tk.StringVar()
-        self.acc_provider = tk.StringVar(value="Outlook")
-        self.acc_host = tk.StringVar(value="")
-        self.acc_port = tk.StringVar(value="993")
-        self.acc_username = tk.StringVar()
-        self.acc_password = tk.StringVar()
-        self.acc_folder = tk.StringVar(value="INBOX")
-        self.acc_ssl = tk.BooleanVar(value=True)
-        self.acc_active = tk.BooleanVar(value=True)
+        right_scroll = QScrollArea(splitter)
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        right = QFrame()
+        right.setObjectName("card")
+        right_scroll.setWidget(right)
+        form = QGridLayout(right)
+        form.setContentsMargins(16, 14, 16, 16)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(8)
+        form.setColumnStretch(1, 1)
+        title = QLabel("Thông tin account")
+        title.setObjectName("sectionTitle")
+        form.addWidget(title, 0, 0, 1, 2)
 
         self.account_field_widgets = []
         fields = [
-            ("Tên account", self.acc_name, "entry"), ("Email nhận mail", self.acc_email, "entry"),
-            ("Loại mail", self.acc_provider, "provider"), ("IMAP host", self.acc_host, "entry"),
-            ("IMAP port", self.acc_port, "entry"), ("Username", self.acc_username, "entry"),
-            ("Password/App password", self.acc_password, "password"), ("Folder", self.acc_folder, "entry"),
+            ("Tên account", "name", "entry"), ("Email nhận mail", "email", "entry"),
+            ("Loại mail", "provider", "provider"), ("IMAP host", "host", "entry"),
+            ("IMAP port", "port", "entry"), ("Username", "username", "entry"),
+            ("Password/App password", "password", "password"), ("Folder", "folder", "entry"),
         ]
-        for idx, (label, variable, kind) in enumerate(fields):
-            label_widget = ctk.CTkLabel(right, text=label, anchor="w")
-            label_widget.grid(row=idx, column=0, sticky="w", padx=(4, 12), pady=6)
+        values = {}
+        for offset, (label_text, key, kind) in enumerate(fields, start=1):
+            label = QLabel(label_text)
             if kind == "provider":
-                widget = ctk.CTkComboBox(
-                    right, variable=variable, values=list(PROVIDER_PRESETS), state="readonly",
-                    command=lambda _value: self.on_provider_changed(),
-                )
+                widget = QComboBox()
+                widget.addItems(list(PROVIDER_PRESETS))
+                binding = ValueBinding(widget, "Outlook")
+                widget.currentTextChanged.connect(lambda _value: self.on_provider_changed())
             else:
-                widget = ctk.CTkEntry(right, textvariable=variable, show="*" if kind == "password" else "")
-            widget.grid(row=idx, column=1, sticky="ew", padx=(0, 4), pady=6)
-            if idx >= 3:
-                self.account_field_widgets.append((label_widget, widget))
+                widget = QLineEdit()
+                if kind == "password":
+                    widget.setEchoMode(QLineEdit.EchoMode.Password)
+                binding = ValueBinding(widget)
+            form.addWidget(label, offset, 0)
+            form.addWidget(widget, offset, 1)
+            values[key] = binding
+            if offset >= 4:
+                self.account_field_widgets.append((label, widget))
 
-        self.ssl_check = ctk.CTkSwitch(right, text="Dùng SSL", variable=self.acc_ssl)
-        self.ssl_check.grid(row=8, column=1, sticky="w", pady=6)
-        ctk.CTkSwitch(right, text="Bật quét account này", variable=self.acc_active).grid(row=9, column=1, sticky="w", pady=6)
+        self.acc_name = values["name"]
+        self.acc_email = values["email"]
+        self.acc_provider = values["provider"]
+        self.acc_host = values["host"]
+        self.acc_port = values["port"]
+        self.acc_username = values["username"]
+        self.acc_password = values["password"]
+        self.acc_folder = values["folder"]
+        self.acc_port.set("993")
+        self.acc_folder.set("INBOX")
 
-        action_row = ctk.CTkFrame(right, fg_color="transparent")
-        action_row.grid(row=10, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        action_row.grid_columnconfigure((0, 1, 2, 3), weight=1)
-        self.microsoft_login_button = ctk.CTkButton(action_row, text="Đăng nhập Microsoft", command=self.login_microsoft)
-        self.microsoft_login_button.grid(row=0, column=0, sticky="ew", padx=(0, 4), pady=4)
-        self.google_login_button = ctk.CTkButton(action_row, text="Đăng nhập Google", command=self.login_google)
-        self.google_login_button.grid(row=0, column=1, sticky="ew", padx=4, pady=4)
-        self.add_button = ctk.CTkButton(action_row, text="Thêm IMAP", width=100, command=self.add_account)
-        self.add_button.grid(row=0, column=2, sticky="ew", padx=4, pady=4)
-        self.update_button = ctk.CTkButton(action_row, text="Cập nhật", width=90, command=self.update_account)
-        self.update_button.grid(row=0, column=3, sticky="ew", padx=(4, 0), pady=4)
-        self.test_button = ctk.CTkButton(action_row, text="Kiểm tra kết nối", command=self.test_current_account)
-        self.test_button.grid(row=1, column=0, columnspan=2, sticky="ew", padx=(0, 4), pady=4)
-        self.scan_one_button = ctk.CTkButton(
-            action_row,
-            text="Quét account này",
-            command=self.start_selected_account_scan,
-            fg_color="#168a55",
-            hover_color="#127347",
-        )
-        self.scan_one_button.grid(row=1, column=2, sticky="ew", padx=4, pady=4)
-        ctk.CTkButton(action_row, text="Xóa form", width=90, command=self.clear_account_form).grid(
-            row=1, column=3, sticky="ew", padx=(4, 0), pady=4
-        )
+        self.ssl_check = QCheckBox("Dùng SSL")
+        self.acc_ssl = ValueBinding(self.ssl_check, True)
+        active_check = QCheckBox("Bật quét account này")
+        self.acc_active = ValueBinding(active_check, True)
+        form.addWidget(self.ssl_check, 9, 1)
+        form.addWidget(active_check, 10, 1)
 
-        self.account_note = tk.StringVar()
-        ctk.CTkLabel(right, textvariable=self.account_note, wraplength=570, justify="left", anchor="w").grid(
-            row=11, column=0, columnspan=2, sticky="ew", padx=4, pady=(14, 4)
-        )
+        actions = QGridLayout()
+        self.microsoft_login_button = QPushButton("Đăng nhập Microsoft")
+        self.microsoft_login_button.clicked.connect(self.login_microsoft)
+        self.google_login_button = QPushButton("Đăng nhập Google")
+        self.google_login_button.clicked.connect(self.login_google)
+        self.add_button = QPushButton("Thêm IMAP")
+        self.add_button.clicked.connect(self.add_account)
+        self.update_button = QPushButton("Cập nhật")
+        self.update_button.clicked.connect(self.update_account)
+        self.test_button = QPushButton("Kiểm tra kết nối")
+        self.test_button.clicked.connect(self.test_current_account)
+        self.scan_one_button = QPushButton("Quét account này")
+        self.scan_one_button.setObjectName("scanButton")
+        self.scan_one_button.clicked.connect(self.start_selected_account_scan)
+        clear = QPushButton("Xóa form")
+        clear.setObjectName("secondaryButton")
+        clear.clicked.connect(self.clear_account_form)
+        actions.addWidget(self.microsoft_login_button, 0, 0)
+        actions.addWidget(self.google_login_button, 0, 1)
+        actions.addWidget(self.add_button, 0, 2)
+        actions.addWidget(self.update_button, 0, 3)
+        actions.addWidget(self.test_button, 1, 0, 1, 2)
+        actions.addWidget(self.scan_one_button, 1, 2)
+        actions.addWidget(clear, 1, 3)
+        form.addLayout(actions, 11, 0, 1, 2)
+
+        note = QLabel("")
+        note.setWordWrap(True)
+        note.setObjectName("muted")
+        self.account_note = ValueBinding(note)
+        form.addWidget(note, 12, 0, 1, 2)
+        form.setRowStretch(13, 1)
+        splitter.setSizes([500, 600])
         self.on_provider_changed()
-
-        parent.grid_rowconfigure(0, weight=1)
-        parent.grid_columnconfigure(0, weight=1)

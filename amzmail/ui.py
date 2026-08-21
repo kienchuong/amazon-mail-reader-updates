@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import queue
 import os
 import threading
 import webbrowser
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from tkinter import filedialog, messagebox
-
-import customtkinter as ctk
+from PySide6.QtCore import QTimer, Qt
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import QApplication, QMainWindow
 
 from amzmail import APP_NAME, APP_VERSION
+from amzmail.controllers import WorkerEventBridge
 from amzmail.db import AppDatabase
 from amzmail.google_sheets import export_csv, post_to_google_sheet
 from amzmail.mobile_sync import build_mobile_snapshot
-from amzmail.supabase_mobile import post_mobile_snapshot
+from amzmail.remote_sync import CloudflareSyncService, RemoteSyncConfig
 from amzmail.google_gmail import (
     fetch_google_body,
     interactive_google_login,
@@ -32,6 +32,7 @@ from amzmail.microsoft_graph import (
 from amzmail.updater import UpdateError, check_for_update, download_update, launch_update, normalize_repo
 from amzmail.vault import Vault
 from amzmail.views import AccountsViewMixin, InboxViewMixin, PaymentsViewMixin, SettingsViewMixin, ShellViewMixin
+from amzmail.views.dialogs import filedialog, messagebox
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,25 +45,25 @@ class AmazonMailReaderApp(
     PaymentsViewMixin,
     AccountsViewMixin,
     SettingsViewMixin,
-    ctk.CTk,
+    QMainWindow,
 ):
     def __init__(self, data_dir: Path, vault: Vault):
-        ctk.set_appearance_mode("System")
-        ctk.set_default_color_theme("blue")
         super().__init__()
-        self.title(f"{APP_NAME} {APP_VERSION}")
-        self.geometry("1180x760")
-        self.minsize(980, 640)
+        self.setWindowTitle(f"{APP_NAME} {APP_VERSION}")
+        self.setWindowIcon(QApplication.windowIcon())
+        self.resize(1180, 760)
+        self.setMinimumSize(980, 640)
 
         self.data_dir = data_dir
         self.db = AppDatabase(data_dir / "amazon_mail_reader.db", vault)
         if not self.db.get_setting("github_repo").strip():
             self.db.set_setting("github_repo", DEFAULT_UPDATE_REPO)
-        self.scan_queue: queue.Queue = queue.Queue()
+        self.scan_queue = WorkerEventBridge(self)
+        self.scan_queue.event.connect(self._handle_worker_event, Qt.ConnectionType.QueuedConnection)
         self.scan_running = False
         self.mobile_sync_generation = 0
         self.selected_account_id: int | None = None
-        self.protocol("WM_DELETE_WINDOW", self.close_app)
+        self._closing = False
 
         self._build_style()
         self._build_ui()
@@ -70,6 +71,10 @@ class AmazonMailReaderApp(
         self.refresh_inbox()
         self.refresh_payments()
         self.after(1200, self.check_updates_silently)
+
+    @staticmethod
+    def after(milliseconds: int, callback) -> None:
+        QTimer.singleShot(milliseconds, callback)
 
     def on_provider_changed(self) -> None:
         provider = self.acc_provider.get()
@@ -80,36 +85,32 @@ class AmazonMailReaderApp(
         self.acc_ssl.set(bool(preset["use_ssl"]))
         is_oauth = provider == "Outlook"
         for label, widget in self.account_field_widgets:
-            if is_oauth:
-                label.grid_remove()
-                widget.grid_remove()
-            else:
-                label.grid()
-                widget.grid()
+            label.setVisible(not is_oauth)
+            widget.setVisible(not is_oauth)
         if provider == "Outlook":
-            self.ssl_check.grid_remove()
-            self.microsoft_login_button.configure(state="normal")
-            self.google_login_button.configure(state="disabled")
-            self.add_button.configure(state="disabled")
-            self.test_button.configure(text="Kiểm tra Microsoft")
+            self.ssl_check.setVisible(False)
+            self.microsoft_login_button.setEnabled(True)
+            self.google_login_button.setEnabled(False)
+            self.add_button.setEnabled(False)
+            self.test_button.setText("Kiểm tra Microsoft")
             self.account_note.set(
                 "Bấm Đăng nhập Microsoft. Trình duyệt sẽ mở trang chính thức của Microsoft; app không nhìn thấy hoặc lưu mật khẩu email."
             )
         elif provider == "Google OAuth":
-            self.ssl_check.grid_remove()
-            self.microsoft_login_button.configure(state="disabled")
-            self.google_login_button.configure(state="normal")
-            self.add_button.configure(state="disabled")
-            self.test_button.configure(text="Kiểm tra Google")
+            self.ssl_check.setVisible(False)
+            self.microsoft_login_button.setEnabled(False)
+            self.google_login_button.setEnabled(True)
+            self.add_button.setEnabled(False)
+            self.test_button.setText("Kiểm tra Google")
             self.account_note.set(
                 "Bấm Đăng nhập Google. Trình duyệt sẽ mở trang chính thức của Google; app không nhìn thấy hoặc lưu mật khẩu Gmail."
             )
         else:
-            self.ssl_check.grid()
-            self.microsoft_login_button.configure(state="disabled")
-            self.google_login_button.configure(state="disabled")
-            self.add_button.configure(state="normal")
-            self.test_button.configure(text="Test IMAP")
+            self.ssl_check.setVisible(True)
+            self.microsoft_login_button.setEnabled(False)
+            self.google_login_button.setEnabled(False)
+            self.add_button.setEnabled(True)
+            self.test_button.setText("Test IMAP")
             self.account_note.set(
                 "Gmail/Yahoo và email tên miền riêng dùng IMAP read-only. App dùng BODY.PEEK để không đánh dấu mail đã đọc."
             )
@@ -363,13 +364,9 @@ class AmazonMailReaderApp(
 
     def _set_scan_controls(self, running: bool) -> None:
         self.scan_running = running
-        state = "disabled" if running else "normal"
-        self.scan_all_button.configure(state=state)
-        self.scan_one_button.configure(
-            state=state,
-            text="Đang quét..." if running else "Quét account này",
-            fg_color="#0f5f3d" if running else "#168a55",
-        )
+        self.scan_all_button.setEnabled(not running)
+        self.scan_one_button.setEnabled(not running)
+        self.scan_one_button.setText("Đang quét..." if running else "Quét account này")
 
     def _scan_one_account(
         self,
@@ -472,69 +469,64 @@ class AmazonMailReaderApp(
         self._start_account_scan([account], single_account=True)
 
     def poll_scan_queue(self) -> None:
-        handled = False
-        while True:
-            try:
-                kind, payload = self.scan_queue.get_nowait()
-            except queue.Empty:
-                break
-            handled = True
-            if kind == "scan_result":
-                if payload.error:
-                    self.set_status(f"{payload.account_name}: lỗi - {payload.error}")
-                else:
-                    self.set_status(f"{payload.account_name}: quét {payload.scanned}, lưu {payload.saved}.")
-            elif kind == "scan_done":
-                self._set_scan_controls(False)
-                self.refresh_inbox()
-                self.refresh_payments()
-                self.refresh_accounts()
-                if payload and payload.get("single"):
-                    self.set_status(f"Đã quét xong account {payload['account_name']}.")
-                else:
-                    self.set_status("Quét xong.")
-                if self.google_auto_sync_var.get():
-                    self.after(100, self.export_to_google_sheet)
-                if self.mobile_auto_sync_var.get():
-                    self.after(150, self.sync_mobile_dashboard)
-            elif kind == "status":
-                self.set_status(payload)
-                self.refresh_accounts()
-            elif kind == "error":
-                self.set_status(payload)
-                self.refresh_accounts()
-                messagebox.showerror("Lỗi", payload)
-            elif kind == "message_body":
-                self.set_message_text(payload)
-            elif kind == "microsoft_login":
-                account_id, email = payload
-                self.refresh_accounts()
-                self.clear_account_form()
-                self.accounts_tree.selection_set(str(account_id))
-                self.accounts_tree.focus(str(account_id))
-                self.on_account_selected()
-                self.set_status(f"Đã kết nối Microsoft: {email}")
-                messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối account {email}.")
-            elif kind == "google_login":
-                account_id, email = payload
-                self.refresh_accounts()
-                self.clear_account_form()
-                self.acc_provider.set("Gmail")
-                self.on_provider_changed()
-                self.accounts_tree.selection_set(str(account_id))
-                self.accounts_tree.focus(str(account_id))
-                self.on_account_selected()
-                self.set_status(f"Đã kết nối Google: {email}")
-                messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối Gmail {email}.")
-            elif kind == "update_available":
-                self.handle_update_available(payload)
-            elif kind == "update_downloaded":
-                self.install_downloaded_update(payload)
-            elif kind == "status_dialog":
-                self.set_status(payload)
-                messagebox.showinfo("Cập nhật", payload)
-        if handled or threading.active_count() > 1:
-            self.after(250, self.poll_scan_queue)
+        # Worker events arrive through WorkerEventBridge on the Qt UI thread.
+        return
+
+    def _handle_worker_event(self, kind: str, payload) -> None:
+        if kind == "scan_result":
+            if payload.error:
+                self.set_status(f"{payload.account_name}: lỗi - {payload.error}")
+            else:
+                self.set_status(f"{payload.account_name}: quét {payload.scanned}, lưu {payload.saved}.")
+        elif kind == "scan_done":
+            self._set_scan_controls(False)
+            self.refresh_inbox()
+            self.refresh_payments()
+            self.refresh_accounts()
+            if payload and payload.get("single"):
+                self.set_status(f"Đã quét xong account {payload['account_name']}.")
+            else:
+                self.set_status("Quét xong.")
+            if self.google_auto_sync_var.get():
+                self.after(100, self.export_to_google_sheet)
+            if self.mobile_auto_sync_var.get():
+                self.after(150, self.sync_mobile_dashboard)
+        elif kind == "status":
+            self.set_status(payload)
+            self.refresh_accounts()
+        elif kind == "error":
+            self.set_status(payload)
+            self.refresh_accounts()
+            messagebox.showerror("Lỗi", payload)
+        elif kind == "message_body":
+            self.set_message_text(payload)
+        elif kind == "microsoft_login":
+            account_id, email = payload
+            self.refresh_accounts()
+            self.clear_account_form()
+            self.accounts_tree.selection_set(str(account_id))
+            self.accounts_tree.focus(str(account_id))
+            self.on_account_selected()
+            self.set_status(f"Đã kết nối Microsoft: {email}")
+            messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối account {email}.")
+        elif kind == "google_login":
+            account_id, email = payload
+            self.refresh_accounts()
+            self.clear_account_form()
+            self.acc_provider.set("Gmail")
+            self.on_provider_changed()
+            self.accounts_tree.selection_set(str(account_id))
+            self.accounts_tree.focus(str(account_id))
+            self.on_account_selected()
+            self.set_status(f"Đã kết nối Google: {email}")
+            messagebox.showinfo("Đăng nhập thành công", f"Đã kết nối Gmail {email}.")
+        elif kind == "update_available":
+            self.handle_update_available(payload)
+        elif kind == "update_downloaded":
+            self.install_downloaded_update(payload)
+        elif kind == "status_dialog":
+            self.set_status(payload)
+            messagebox.showinfo("Cập nhật", payload)
 
     def refresh_inbox(self) -> None:
         self.inbox_tree.delete(*self.inbox_tree.get_children())
@@ -615,24 +607,10 @@ class AmazonMailReaderApp(
         self.after(150, self.poll_message_queue)
 
     def poll_message_queue(self) -> None:
-        try:
-            while True:
-                kind, payload = self.scan_queue.get_nowait()
-                if kind == "message_body":
-                    self.set_message_text(payload)
-                else:
-                    self.scan_queue.put((kind, payload))
-                    break
-        except queue.Empty:
-            pass
-        if threading.active_count() > 1:
-            self.after(250, self.poll_message_queue)
+        return
 
     def set_message_text(self, value: str) -> None:
-        self.message_text.configure(state="normal")
-        self.message_text.delete("1.0", "end")
-        self.message_text.insert("1.0", value)
-        self.message_text.configure(state="disabled")
+        self.message_text.setPlainText(value)
 
     def refresh_payments(self) -> None:
         self.payment_tree.delete(*self.payment_tree.get_children())
@@ -687,11 +665,20 @@ class AmazonMailReaderApp(
         self.db.set_setting("google_webhook_url", self.webhook_url_var.get().strip())
         self.db.set_secret_setting("google_webhook_secret", self.webhook_secret_var.get().strip())
         self.db.set_setting("google_auto_sync", "1" if self.google_auto_sync_var.get() else "0")
-        self.db.set_setting("supabase_mobile_function_url", self.mobile_function_url_var.get().strip())
-        self.db.set_setting("supabase_mobile_dashboard_url", self.mobile_dashboard_url_var.get().strip())
-        self.db.set_secret_setting("supabase_mobile_sync_secret", self.mobile_sync_secret_var.get().strip())
-        self.db.set_setting("mobile_auto_sync", "1" if self.mobile_auto_sync_var.get() else "0")
-        self.set_status("Đã lưu cấu hình Microsoft và Google Sheet.")
+        mobile = self._remote_sync_config_from_form().save(self.db)
+        self.mobile_function_url_var.set(mobile.worker_url)
+        self.mobile_dashboard_url_var.set(mobile.dashboard_url)
+        self.mobile_timeout_var.set(str(mobile.timeout_seconds))
+        self.set_status("Đã lưu cấu hình Microsoft, Google Sheet và Cloudflare.")
+
+    def _remote_sync_config_from_form(self) -> RemoteSyncConfig:
+        return RemoteSyncConfig(
+            worker_url=self.mobile_function_url_var.get(),
+            dashboard_url=self.mobile_dashboard_url_var.get(),
+            sync_secret=self.mobile_sync_secret_var.get(),
+            enabled=bool(self.mobile_auto_sync_var.get()),
+            timeout_seconds=self.mobile_timeout_var.get(),
+        )
 
     def save_google_client_settings(self) -> None:
         client_id = self.google_client_id_var.get().strip()
@@ -776,10 +763,23 @@ class AmazonMailReaderApp(
         self.after(500, self.close_app)
 
     def close_app(self) -> None:
+        if self._closing:
+            return
+        self._closing = True
         try:
             self.db.close()
         finally:
-            self.destroy()
+            QApplication.quit()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if not self._closing:
+            self._closing = True
+            try:
+                self.db.close()
+            finally:
+                event.accept()
+            return
+        event.accept()
 
     def export_to_google_sheet(self) -> None:
         self.save_sheet_settings()
@@ -822,11 +822,11 @@ class AmazonMailReaderApp(
 
     def sync_mobile_dashboard(self) -> None:
         self.save_sheet_settings()
-        url = self.mobile_function_url_var.get().strip()
-        secret = self.mobile_sync_secret_var.get().strip()
-        if not url or not secret:
-            self.set_status("Chưa đồng bộ Mobile Dashboard: thiếu Webhook URL hoặc Secret.")
+        config = self._remote_sync_config_from_form().normalized()
+        if not config.worker_url or not config.sync_secret:
+            self.set_status("Chưa đồng bộ Mobile Dashboard: thiếu Cloudflare Worker URL hoặc Sync Secret.")
             return
+        service = CloudflareSyncService(config)
         days = self.display_days()
         messages = self.db.list_messages(days_back=days)
         payments = self.db.list_payments(days)
@@ -837,7 +837,7 @@ class AmazonMailReaderApp(
         def worker():
             try:
                 quick_snapshot = build_mobile_snapshot(messages, payments, days)
-                status, body = post_mobile_snapshot(url, secret, quick_snapshot)
+                status, body = service.post_snapshot(quick_snapshot)
                 if generation != self.mobile_sync_generation:
                     return
                 self.scan_queue.put(("status", "Mobile Dashboard đã có danh sách mới; đang tải nội dung mail..."))
@@ -847,7 +847,7 @@ class AmazonMailReaderApp(
                 snapshot = build_mobile_snapshot(messages, payments, days, self._mobile_body)
                 if generation != self.mobile_sync_generation:
                     return
-                status, body = post_mobile_snapshot(url, secret, snapshot)
+                status, body = service.post_snapshot(snapshot)
                 self.scan_queue.put(("status", f"Mobile Dashboard trả về HTTP {status}: {body[:120]}"))
             except Exception as exc:
                 self.scan_queue.put(("error", f"Đồng bộ Mobile Dashboard thất bại: {exc}"))
@@ -902,7 +902,7 @@ class AmazonMailReaderApp(
     def open_mobile_dashboard(self) -> None:
         url = self.mobile_dashboard_url_var.get().strip()
         if not url:
-            messagebox.showwarning("Thiếu Webhook URL", "Hãy nhập Webhook URL trước.")
+            messagebox.showwarning("Thiếu Dashboard URL", "Hãy nhập Dashboard URL trước.")
             return
         webbrowser.open(url)
 

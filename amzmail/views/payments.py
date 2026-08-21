@@ -1,32 +1,33 @@
 from __future__ import annotations
 
-import tkinter as tk
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-import customtkinter as ctk
+from amzmail.views.controls import ValueBinding
 
 
 class PaymentsViewMixin:
-    def _build_payments_view(self, parent: ctk.CTkFrame) -> None:
-        header = ctk.CTkFrame(parent, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 10))
-        header.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            header,
-            text="Thống kê payment",
-            font=ctk.CTkFont(family="Segoe UI Variable", size=20, weight="bold"),
-        ).grid(
-            row=0, column=0, sticky="w"
-        )
-        ctk.CTkButton(header, text="Xuất CSV", width=92, command=self.export_payments_csv).grid(row=0, column=1, padx=4)
-        ctk.CTkButton(header, text="Làm mới", width=92, command=self.refresh_payments).grid(row=0, column=2, padx=(4, 0))
+    def _build_payments_view(self, parent: QWidget) -> None:
+        page = QVBoxLayout(parent)
+        page.setContentsMargins(20, 18, 20, 18)
+        page.setSpacing(10)
 
-        self.payment_summary_var = tk.StringVar(value="")
-        ctk.CTkLabel(parent, textvariable=self.payment_summary_var, anchor="w").grid(
-            row=1, column=0, sticky="ew", padx=20, pady=(0, 10)
-        )
+        header = QHBoxLayout()
+        title = QLabel("Thống kê payment")
+        title.setObjectName("sectionTitle")
+        header.addWidget(title)
+        header.addStretch(1)
+        export = QPushButton("Xuất CSV")
+        export.clicked.connect(self.export_payments_csv)
+        refresh = QPushButton("Làm mới")
+        refresh.clicked.connect(self.refresh_payments)
+        header.addWidget(export)
+        header.addWidget(refresh)
+        page.addLayout(header)
 
-        table_frame = ctk.CTkFrame(parent, corner_radius=10, fg_color=("#ffffff", "#202326"))
-        table_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 18))
+        summary = QLabel("")
+        self.payment_summary_var = ValueBinding(summary)
+        page.addWidget(summary)
+
         columns = ("date", "account", "email", "currency", "amount", "payment_id")
         headings = {
             "date": "Date", "account": "Account", "email": "Email",
@@ -34,7 +35,7 @@ class PaymentsViewMixin:
         }
         widths = {"date": 75, "account": 130, "email": 300, "currency": 100, "amount": 145, "payment_id": 230}
         self.payment_tree = self._create_tree(
-            table_frame,
+            parent,
             columns,
             headings,
             widths,
@@ -42,6 +43,4 @@ class PaymentsViewMixin:
             right_columns=("currency", "amount"),
             truncate_columns=("email",),
         )
-
-        parent.grid_rowconfigure(2, weight=1)
-        parent.grid_columnconfigure(0, weight=1)
+        page.addWidget(self.payment_tree, 1)

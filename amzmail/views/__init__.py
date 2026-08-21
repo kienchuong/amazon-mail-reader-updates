@@ -1,4 +1,4 @@
-"""CustomTkinter views for Amazon Mail Reader."""
+"""PySide6 Qt Widgets views for Amazon Mail Reader."""
 
 from .accounts import AccountsViewMixin
 from .inbox import InboxViewMixin

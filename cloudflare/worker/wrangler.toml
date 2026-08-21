@@ -1,0 +1,13 @@
+name = "amazon-mail-reader-mobile"
+main = "src/index.ts"
+compatibility_date = "2026-08-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "amazon-mail-reader-mobile"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "../migrations"
+
+# Add secrets outside Git:
+#   wrangler secret put AMR_SYNC_SECRET
+#   wrangler secret put AMR_DASHBOARD_TOKEN
